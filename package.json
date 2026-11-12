@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "tsc --noEmit",
     "test:meta": "node --experimental-strip-types --test tests/meta-library.test.mjs"
@@ -25,6 +25,6 @@
     "typescript": "5.8.3"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22 <23"
   }
 }
