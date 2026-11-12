@@ -1,0 +1,35 @@
+CAÇADOR DE OFERTAS IA — PROJETO COMPLETO
+
+1. QUERO VER COMO FICOU:
+   Dê dois cliques em demonstracao.html.
+   A prévia funciona offline, sem login nem IA.
+
+2. QUERO USAR A VERSÃO ONLINE COM LOGIN, BANCO E IA:
+   - Instale Node.js 22.
+   - Crie um projeto NOVO no Supabase.
+   - Execute o SQL de supabase/schema.sql no SQL Editor.
+   - Configure .env.local a partir de .env.example.
+   - No Windows, clique INICIAR-WINDOWS.bat.
+   - Abra http://localhost:3000.
+
+3. PARA PUBLICAR:
+   Use hospedagem Node.js ou uma VPS/Vercel.
+   Configure as variáveis no servidor, domínio HTTPS e os Redirect URLs do Auth.
+
+IMPORTANTE:
+- O código é entregue, mas não está publicado em domínio real.
+- A demonstração foi testada no navegador.
+- O Next.js depende de instalação via npm para testes de build.
+- A IA requer chave OpenAI com crédito na API.
+- Não copie keys secretas para campos NEXT_PUBLIC_.
+
+Leia README.md para todos os detalhes.
+
+NOVIDADE — LINKS DA META ADS LIBRARY
+
+- Dentro da Biblioteca de anúncios, cole o link individual (?id=...) e clique em "Extrair dados do link".
+- Se a Meta não devolver informações legíveis, o sistema AVISA e você completa manualmente sem perder o link/ID.
+- Na versão online, o botão "Verificar link agora" registra uma nova consulta no histórico.
+- Se você JÁ criou o banco do Caçador, execute antes o SQL supabase/upgrade-link-import.sql nesse banco.
+- Nunca execute esse SQL nos projetos do OrçaJá Pro ou JVianaFlow.
+- A prévia demonstracao.html é OFFLINE: identifica ID e permite cadastro manual, mas não consulta a Meta.

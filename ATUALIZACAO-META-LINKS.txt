@@ -1,0 +1,32 @@
+CAÇADOR DE OFERTAS IA — NOVO: IMPORTAÇÃO POR LINK DA META
+
+1. Abra o arquivo demonstracao.html para testar o cadastro manual.
+   A prévia é OFFLINE e só extrai o ID da URL — não consulta os dados reais.
+
+2. Para usar o serviço completo, instale e publique o projeto Next.js.
+   O botão "Extrair dados do link" tenta consultar a Meta no servidor, com seu login Supabase.
+
+3. Entre em Biblioteca de anúncios > Salvar anúncio.
+   Cole: https://www.facebook.com/ads/library/?id=SEU_ID
+   Clique: Extrair dados do link.
+
+4. Se o link não fornecer dados, você verá uma notificação e poderá
+   informar manualmente data, status, anunciante, texto, criativo e observações.
+   Os dados não disponíveis NÃO serão inventados e o anúncio NÃO será marcado inativo.
+
+5. Salve o anúncio; depois abra e clique em "Verificar link agora".
+   O histórico registra as consultas por link e as verificações manuais separadamente.
+
+IMPORTANTE PARA QUEM JÁ TEM O BANCO:
+Execute supabase/upgrade-link-import.sql no SQL Editor do banco do Caçador.
+Não execute o SQL em bancos do OrçaJá Pro ou JVianaFlow.
+
+Teste do parser (Node 22+): npm run test:meta
+
+LIMITES:
+- Não existe conexão com API oficial da Meta neste pacote.
+- Data e status podem ser ocultados/bloqueados pela plataforma.
+- O recurso é sob demanda, não é um robô de monitoramento automático.
+- Contar dias desde o início não comprova veiculação contínua, vendas ou lucro.
+- A produção requer URL e chave pública do Supabase e instalação das dependências.
+- Não foi possível validar a implantação online real sem contas/configurações.
