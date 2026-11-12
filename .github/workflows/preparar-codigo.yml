@@ -1,0 +1,32 @@
+name: Preparar codigo do SaaS
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/preparar-codigo.yml']
+permissions:
+  contents: write
+jobs:
+  extrair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Extrair projeto e organizar na raiz
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp-extract
+          unzip -q Cacador-de-Ofertas-IA-Meta-Links.zip -d .tmp-extract
+          test -f .tmp-extract/cacador-ofertas-ia/package.json
+          cp -a .tmp-extract/cacador-ofertas-ia/. .
+          rm -rf .tmp-extract
+          rm -f Cacador-de-Ofertas-IA-Meta-Links.zip
+          rm -f .github/workflows/preparar-codigo.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "Organiza codigo Next.js do Cacador de Ofertas para deploy"
+            git push
+          fi
