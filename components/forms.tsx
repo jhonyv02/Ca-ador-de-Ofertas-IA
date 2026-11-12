@@ -84,7 +84,7 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
       const checkIsCurrent=!!inspection&&inspection.normalizedUrl===safeHttpUrl(values.ad_url);
       const startedSource=values.started_at?(checkIsCurrent&&inspection?.startedAt===values.started_at?'public_page':
         !inspection&&ad?.started_at===values.started_at?ad.started_at_source:'manual'):'unknown';
-      const statusSource=values.observed_active==='unknown'?'unknown':checkIsCurrent&&inspection?.status===values.observed_active&&inspection?.status!=='unknown'?'public_page':
+      const statusSource=values.observed_active==='unknown'?'unknown':checkIsCurrent&&inspection?.status===values.observed_active?'public_page':
         !inspection&&ad?.observed_active===values.observed_active?ad.status_source:'manual';
       const row={user_id:user.id,product_id:values.product_id,name:values.name.trim(),platform:values.platform,advertiser:values.advertiser.trim(),ad_url:safeHttpUrl(values.ad_url),ad_copy:values.ad_copy.trim(),hook:values.hook.trim(),cta:values.cta.trim(),notes:values.notes.trim(),started_at:values.started_at||null,first_seen_at:values.first_seen_at||null,observed_active:values.observed_active,is_favorite:values.is_favorite,
         meta_library_id:metaId,
