@@ -1,5 +1,7 @@
 # Caçador de Ofertas IA
 
+> **Publicação na Hostinger:** leia [HOSTINGER-PRODUCAO.md](HOSTINGER-PRODUCAO.md) antes de conectar o domínio. O GitHub Actions verifica a instalação, os testes do extrator, o TypeScript e o build Next.js. O banco e as chaves não são provisionados automaticamente.
+
 SaaS de pesquisa e comparação de produtos para tráfego pago construído com Next.js 16 e React 19, em português, com autenticação, dados isolados por usuário, arquivo privado de criativos, análise multimodal opcional e simulador.
 
 ## O que está implementado
