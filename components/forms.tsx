@@ -6,9 +6,12 @@ import { Field, Feedback } from '@/components/ui';
 import { safeHttpUrl } from '@/lib/utils';
 import { LoaderCircle, Save, ScanSearch, AlertTriangle } from 'lucide-react';
 import { parseMetaLibraryUrl, type MetaInspection } from '@/lib/meta-library';
+import {useLocale} from '@/components/locale';
+import {CurrencyPicker,MarketLanguagePicker} from '@/components/global-options';
 const blankProduct={name:'',niche:'',product_type:'digital' as ProductType,country:'Brasil',language:'pt-BR',currency:'BRL',sale_price:'',fulfillment_cost:'',extra_cost:'',landing_url:'',checkout_url:'',landing_copy:'',promise:'',target_audience:'',notes:'',status:'researching' as ProductStatus};
 export function ProductForm({product,onComplete,onCancel}:{product?:Product;onComplete:(id:string)=>void;onCancel:()=>void}) {
   const {supabase,refresh}=useWorkspace();
+  const {t}=useLocale();
   const [values,setValues]=useState({...blankProduct,...(product?{...product,sale_price:product.sale_price?.toString()||'',fulfillment_cost:product.fulfillment_cost?.toString()||'',extra_cost:product.extra_cost?.toString()||''}:{})});
   const [saving,setSaving]=useState(false);const [error,setError]=useState('');
   const set=(key:string,val:string)=>setValues(prev=>({...prev,[key]:val}));
@@ -29,24 +32,47 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
     finally{setSaving(false);}
   }
   return <form onSubmit={submit} className="form-grid">
-    <Field label="Nome do produto *"><input className="input" required maxLength={150} value={values.name} onChange={e=>set('name',e.target.value)} placeholder="Ex.: 300 mapas mentais de informática"/></Field>
-    <Field label="Nicho"><input className="input" maxLength={100} value={values.niche} onChange={e=>set('niche',e.target.value)} placeholder="Ex.: Educação, Pets, Beleza"/></Field>
-    <Field label="Tipo de produto"><select className="input" value={values.product_type} onChange={e=>set('product_type',e.target.value)}><option value="digital">Produto digital</option><option value="physical">Produto físico</option><option value="saas">SaaS</option><option value="service">Serviço</option></select></Field>
-    <Field label="Status de pesquisa"><select className="input" value={values.status} onChange={e=>set('status',e.target.value)}><option value="researching">Pesquisando</option><option value="ready">Pronto para testar</option><option value="testing">Em teste</option><option value="winning">Validado</option><option value="discarded">Descartado</option></select></Field>
-    <Field label="País"><input className="input" value={values.country} onChange={e=>set('country',e.target.value)}/></Field>
-    <Field label="Moeda"><select className="input" value={values.currency} onChange={e=>set('currency',e.target.value)}><option value="BRL">BRL - Real</option><option value="USD">USD - Dólar</option><option value="EUR">EUR - Euro</option><option value="MXN">MXN - Peso mexicano</option><option value="ARS">ARS - Peso argentino</option><option value="COP">COP - Peso colombiano</option></select></Field>
-    <Field label="Preço de venda"><input type="number" min="0" step="0.01" className="input" value={values.sale_price} onChange={e=>set('sale_price',e.target.value)} placeholder="47.00"/></Field>
-    <Field label="Custo de entrega / produto"><input type="number" min="0" step="0.01" className="input" value={values.fulfillment_cost} onChange={e=>set('fulfillment_cost',e.target.value)} placeholder="0.00"/></Field>
-    <Field label="Taxas e outros custos por venda"><input type="number" min="0" step="0.01" className="input" value={values.extra_cost} onChange={e=>set('extra_cost',e.target.value)} placeholder="4.00"/></Field>
-    <Field label="Idioma / mercado"><select className="input" value={values.language} onChange={e=>set('language',e.target.value)}><option value="pt-BR">Português (Brasil)</option><option value="es">Espanhol</option><option value="en">Inglês</option><option value="pt-PT">Português (Portugal)</option></select></Field>
-    <div className="full"><Field label="Link da página de vendas"><input type="url" className="input" value={values.landing_url} onChange={e=>set('landing_url',e.target.value)} placeholder="https://..."/></Field></div>
-    <div className="full"><Field label="Link do checkout (opcional)"><input type="url" className="input" value={values.checkout_url} onChange={e=>set('checkout_url',e.target.value)} placeholder="https://..."/></Field></div>
-    <div className="full"><Field label="Texto da página de vendas (cole aqui para a IA ler)"><textarea className="textarea" maxLength={12000} rows={6} value={values.landing_copy} onChange={e=>set('landing_copy',e.target.value)} placeholder="Cole título, subtítulo, benefícios, garantias e depoimentos da página. A IA não lê automaticamente apenas o link."/></Field></div>
-    <div className="full"><Field label="Promessa principal da oferta"><textarea className="textarea" maxLength={2000} value={values.promise} onChange={e=>set('promise',e.target.value)} placeholder="O que o produto promete resolver? Transcreva a proposta de venda."/></Field></div>
-    <div className="full"><Field label="Público-alvo"><input className="input" maxLength={300} value={values.target_audience} onChange={e=>set('target_audience',e.target.value)} placeholder="Ex.: estudantes de TI entre 18 e 30 anos"/></Field></div>
-    <div className="full"><Field label="Notas e observações da pesquisa"><textarea maxLength={5000} className="textarea" value={values.notes} onChange={e=>set('notes',e.target.value)} placeholder="Dores, objeções, depoimentos, diferenciais, sinais de mercado..."/></Field></div>
+    <div className="full form-intro"><strong>{t('essentials')}</strong><small>{t('productsDescription')}</small></div>
+    <div className="full"><Field label={t('productName')+' *'}>
+      <input className="input" autoFocus required maxLength={150} value={values.name} onChange={e=>set('name',e.target.value)} placeholder={t('productPlaceholder')}/>
+    </Field></div>
+    <div className="full"><Field label={t('salesPage')}>
+      <input type="url" className="input" value={values.landing_url} onChange={e=>set('landing_url',e.target.value)} placeholder="https://..."/>
+    </Field></div>
+    <Field label={t('price')}>
+      <input type="number" min="0" step="0.01" className="input" value={values.sale_price} onChange={e=>set('sale_price',e.target.value)} placeholder="47.00"/>
+    </Field>
+    <Field label={t('currency')}><CurrencyPicker value={values.currency} onChange={v=>set('currency',v)}/></Field>
+
+    <div className="full">
+      <details className="advanced-details" key={product?.id||'new'}>
+        <summary>{t('advanced')}</summary>
+        <div className="advanced-grid">
+          <Field label={t('niche')}><input className="input" maxLength={100} value={values.niche} onChange={e=>set('niche',e.target.value)} placeholder="Pets, Educação, Beleza..."/></Field>
+          <Field label={t('productType')}><select className="input" value={values.product_type} onChange={e=>set('product_type',e.target.value)}>
+            <option value="digital">{t('digital')}</option><option value="physical">{t('physical')}</option><option value="saas">SaaS</option><option value="service">{t('service')}</option>
+          </select></Field>
+          <Field label={t('country')}><input className="input" maxLength={100} value={values.country} onChange={e=>set('country',e.target.value)}/></Field>
+          <Field label={t('offerLanguage')}><MarketLanguagePicker value={values.language} onChange={v=>set('language',v)}/></Field>
+          <Field label={t('researchStatus')}><select className="input" value={values.status} onChange={e=>set('status',e.target.value)}>
+            <option value="researching">{t('researching')}</option><option value="ready">{t('ready')}</option>
+            <option value="testing">{t('testing')}</option><option value="winning">{t('winning')}</option>
+            <option value="discarded">{t('discarded')}</option>
+          </select></Field>
+          <Field label={t('cost')}><input type="number" min="0" step="0.01" className="input" value={values.fulfillment_cost} onChange={e=>set('fulfillment_cost',e.target.value)} placeholder="0.00"/></Field>
+          <Field label={t('fees')}><input type="number" min="0" step="0.01" className="input" value={values.extra_cost} onChange={e=>set('extra_cost',e.target.value)} placeholder="0.00"/></Field>
+          <Field label={t('checkout')}><input type="url" className="input" value={values.checkout_url} onChange={e=>set('checkout_url',e.target.value)} placeholder="https://..."/></Field>
+          <div className="full"><Field label={t('pageCopy')}><textarea className="textarea" maxLength={12000} rows={4} value={values.landing_copy} onChange={e=>set('landing_copy',e.target.value)}/></Field></div>
+          <div className="full"><Field label={t('promise')}><textarea className="textarea" maxLength={2000} rows={2} value={values.promise} onChange={e=>set('promise',e.target.value)}/></Field></div>
+          <div className="full"><Field label={t('audience')}><input className="input" maxLength={300} value={values.target_audience} onChange={e=>set('target_audience',e.target.value)}/></Field></div>
+          <div className="full"><Field label={t('notes')}><textarea className="textarea" maxLength={5000} value={values.notes} onChange={e=>set('notes',e.target.value)}/></Field></div>
+        </div>
+      </details>
+    </div>
     {error&&<div className="full"><Feedback type="error">{error}</Feedback></div>}
-    <div className="form-actions"><button type="button" className="btn btn-ghost" onClick={onCancel}>Cancelar</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving?<LoaderCircle size={16} className="spin"/>:<Save size={16}/>} {product?'Salvar alterações':'Cadastrar produto'}</button></div>
+    <div className="form-actions"><button type="button" className="btn btn-ghost" onClick={onCancel}>{t('cancel')}</button>
+      <button type="submit" className="btn btn-primary" disabled={saving}>{saving?<LoaderCircle size={16} className="spin"/>:<Save size={16}/>} {t('save')}</button>
+    </div>
   </form>;
 }
 const blankAd={name:'',product_id:'',platform:'meta' as Platform,advertiser:'',ad_url:'',ad_copy:'',hook:'',cta:'',notes:'',started_at:'',first_seen_at:new Date().toISOString().slice(0,10),observed_active:'unknown' as AdStatus,is_favorite:false,meta_library_id:null as string|null,link_check_result:'not_checked' as const,last_checked_at:null as string|null,last_check_message:'',started_at_source:'unknown' as const,status_source:'unknown' as const};
