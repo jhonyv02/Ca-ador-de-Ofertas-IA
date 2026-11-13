@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseMetaLibraryUrl,parseSpecificAdFromHtml,fallbackInspection} from '../lib/meta-library.ts';
+import {parseMetaLibraryUrl,parseSpecificAdFromHtml,parseCopiedMetaCardText,fallbackInspection} from '../lib/meta-library.ts';
 
 test('normaliza link individual e extrai ID sem inventar dados',()=>{
   assert.deepEqual(parseMetaLibraryUrl('https://business.facebook.com/ads/library/?id=123456789&country=BR'),
@@ -36,4 +36,25 @@ test('fallback preserva ID, marca status não confirmado',()=>{
 test('reconhece data em português quando ligada ao ID exato',()=>{
   const page='<div>Ativo Identificação da biblioteca: 123456789 Veiculação iniciada em 4 de novembro de 2026</div>';
   assert.deepEqual(parseSpecificAdFromHtml(page,'123456789'),{startedAt:'2026-11-04',status:'active'});
+});
+
+test('importa status e data no formato dia mês ano copiado da Meta',()=>{
+  const card='Active\\nLibrary ID: 858896412722876\\nStarted running on 29 Oct 2024\\nPlatforms';
+  assert.deepEqual(parseCopiedMetaCardText(card,'858896412722876'),{startedAt:'2024-10-29',status:'active'});
+});
+
+test('importa dados de card com data em português',()=>{
+  const card='Ativo\\nIdentificação da biblioteca: 2056321028535473\\nVeiculação iniciada em 23 de dezembro de 2025';
+  assert.deepEqual(parseCopiedMetaCardText(card,'2056321028535473'),{startedAt:'2025-12-23',status:'active'});
+});
+
+test('não importa dados de ID diferente ou do próximo cartão',()=>{
+  const card='Ativo Library ID: 2056321028535473 sem data Inactive Library ID: 858896412722876 Started running on Oct 29, 2024';
+  assert.deepEqual(parseCopiedMetaCardText(card,'2056321028535473'),{startedAt:null,status:'active'});
+  assert.equal(parseCopiedMetaCardText(card,'2056321028535474'),null);
+});
+
+test('reconhece datas espanholas do cartão copiado',()=>{
+  const card='Activo ID de la biblioteca: 2056321028535473 En circulación desde 23 de diciembre de 2025';
+  assert.deepEqual(parseCopiedMetaCardText(card,'2056321028535473'),{startedAt:'2025-12-23',status:'active'});
 });
