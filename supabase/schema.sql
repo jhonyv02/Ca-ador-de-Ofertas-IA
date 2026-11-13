@@ -178,3 +178,13 @@ using (bucket_id='creatives' and (storage.foldername(name))[1]=(select auth.uid(
 -- Testes rápidos após a execução:
 -- select tablename,rowsecurity from pg_tables where schemaname='public' and tablename in ('products','ads','ad_snapshots','analyses','test_runs');
 -- select id,public,file_size_limit from storage.buckets where id='creatives';
+
+-- Solicita atualização do cache da API REST após criar as tabelas.
+notify pgrst, 'reload schema';
+
+-- Resultado esperado: 5 linhas (products, ads, ad_snapshots, analyses, test_runs).
+select table_name as tabela_criada
+from information_schema.tables
+where table_schema='public'
+  and table_name in ('products','ads','ad_snapshots','analyses','test_runs')
+order by table_name;
