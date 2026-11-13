@@ -11,6 +11,9 @@ export function dbErrorMessage(value: unknown, fallback = 'Não foi possível sa
   const details = typeof obj.details === 'string' ? obj.details.slice(0, 160) : '';
   const hint = typeof obj.hint === 'string' ? obj.hint.slice(0, 160) : '';
   const raw = message.toLowerCase();
+  if (/failed to fetch|fetch failed|networkerror|network request failed/.test(raw)) {
+    return 'Falha de conexão com o Supabase. Não é necessário recriar as tabelas. Abra /diagnostico no seu site para verificar a URL configurada e testar se a Hostinger e o navegador conseguem alcançar o banco.';
+  }
 
   if (code === 'PGRST205' || code === '42P01' || /could not find the table.*schema cache/i.test(message)) {
     return 'A tabela do banco não foi encontrada na conexão atual. Confira se a URL do Supabase configurada na Hostinger é a do projeto Caçador de Ofertas e reimplante o site. ' + (code ? '(' + code + ')' : '');
