@@ -3,12 +3,23 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Archive, BookOpen, Download, ExternalLink, FileDown, ShieldCheck, Users, KeyRound, FileText } from 'lucide-react';
 import { useWorkspace } from '@/components/workspace';
-import { PageHeading, Section, Feedback } from '@/components/ui';
+import { PageHeading, Section, Feedback, Field } from '@/components/ui';
+import {useLocale} from '@/components/locale';
+import {LocalePicker,CurrencyPicker} from '@/components/global-options';
 import { downloadCsv } from '@/lib/utils';
 export default function Settings(){
- const {products,ads,snapshots,analyses,testRuns,supabase}=useWorkspace();const [message,setMessage]=useState('');
+ const {products,ads,snapshots,analyses,testRuns,supabase}=useWorkspace();
+ const {t,defaultCurrency,setDefaultCurrency}=useLocale();
+ const [message,setMessage]=useState('');
  async function passwordReset(){const {data:{user}}=await supabase.auth.getUser();if(!user?.email)return setMessage('Conta sem e-mail configurado.');const {error}=await supabase.auth.resetPasswordForEmail(user.email,{redirectTo:`${window.location.origin}/auth/callback?next=/update-password`});setMessage(error?error.message:'E-mail de recuperação enviado.');}
- return <><PageHeading eyebrow="CONTA E DADOS" title="Configurações" description="Exporte seu acervo, revise as fontes e conheça os limites do monitoramento."/>
+ return <><PageHeading eyebrow={t('settings')} title={t('settingsTitle')} description={t('savedInfo')}/>
+ <Section title={t('language')+' / '+t('currency')}>
+   <div className="advanced-grid" style={{padding:0}}>
+     <Field label={t('language')}><LocalePicker/></Field>
+     <Field label={t('currency')}><CurrencyPicker value={defaultCurrency} onChange={setDefaultCurrency}/></Field>
+   </div>
+   <p className="muted mt-2" style={{fontSize:12}}>A moeda padrão vale para novos produtos. Produtos já salvos mantêm sua moeda. Mudar a moeda não converte valores automaticamente.</p>
+ </Section>
  <div className="two-col"><div>
  <Section title="Exportação de dados" description="Seus dados são seus. Baixe tudo em CSV (compatível com Excel).">
  <div className="flex wrap gap-2"><button className="btn" onClick={()=>downloadCsv('produtos.csv',['id','nome','nicho','tipo','preco','custo','taxas','status','pagina','promessa'],products.map(p=>[p.id,p.name,p.niche,p.product_type,p.sale_price,p.fulfillment_cost,p.extra_cost,p.status,p.landing_url,p.promise]))}><Download size={15}/> Produtos ({products.length})</button>
