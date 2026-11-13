@@ -178,13 +178,16 @@ const translations:Record<string,Record<string,string>> = {
  'pt-BR':pt,'pt-PT':{...pt,productName:'Nome do produto',price:'Preço de venda',settings:'Definições'},
  'en':en,'es':es,'fr':fr,'de':de,'it':it,...other
 };
-type LocaleContextValue = { locale:string; setLocale:(locale:string)=>void; t:(key:string)=>string };
+type LocaleContextValue = { locale:string; setLocale:(locale:string)=>void; defaultCurrency:string; setDefaultCurrency:(currency:string)=>void; t:(key:string)=>string };
 const LocaleContext=createContext<LocaleContextValue|null>(null);
 
 export function LocaleProvider({children}:{children:ReactNode}) {
  const [locale,setLocaleState]=useState('pt-BR');
+ const [defaultCurrency,setDefaultCurrencyState]=useState('BRL');
  useEffect(()=>{
    try {
+     const storedCurrency=window.localStorage.getItem('cacador-default-currency');
+     if(storedCurrency&&/^[A-Z]{3}$/.test(storedCurrency))setDefaultCurrencyState(storedCurrency);
      const stored=window.localStorage.getItem('cacador-ui-locale');
      if(stored&&translations[stored])setLocaleState(stored);
      else {const browser=window.navigator.language;const exact=UI_LANGUAGES.find(([key])=>key===browser);
@@ -197,9 +200,14 @@ export function LocaleProvider({children}:{children:ReactNode}) {
    setLocaleState(value);
    try {window.localStorage.setItem('cacador-ui-locale',value);}catch{/* navegador privado */}
  };
+ const setDefaultCurrency=(currency:string)=>{
+   if(!/^[A-Z]{3}$/.test(currency))return;
+   setDefaultCurrencyState(currency);
+   try {window.localStorage.setItem('cacador-default-currency',currency);}catch{/* navegador privado */}
+ };
  useEffect(()=>{document.documentElement.lang=locale;document.documentElement.dir=locale==='ar'?'rtl':'ltr';},[locale]);
  const t=(key:string)=>translations[locale]?.[key]||pt[key]||key;
- const value=useMemo(()=>({locale,setLocale,t}),[locale]);
+ const value=useMemo(()=>({locale,setLocale,defaultCurrency,setDefaultCurrency,t}),[locale,defaultCurrency]);
  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 export function useLocale(){const ctx=useContext(LocaleContext);if(!ctx)throw new Error('LocaleProvider ausente');return ctx;}
