@@ -10,6 +10,10 @@ export type MetaInspection = {
   startedAt: string | null;
   message: string;
   source: 'public_page' | 'url_only';
+  reason?: 'found_full' | 'found_partial' | 'no_ad_id' | 'meta_restricted' |
+    'redirected' | 'unexpected_response' | 'too_large' | 'not_rendered' |
+    'timeout' | 'network_error' | 'not_checked';
+  httpStatus?: number | null;
 };
 
 const ALLOWED_HOSTS = new Set(['www.facebook.com','facebook.com','business.facebook.com','m.facebook.com']);
@@ -55,28 +59,51 @@ function validDate(year:number,month:number,day:number): string|null {
   return `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
 function extractStartDate(text:string): string|null {
-  const en=text.match(/Started running on\s+([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/i);
-  if(en) return validDate(Number(en[3]),MONTHS[en[1].toLowerCase()]||0,Number(en[2]));
-  const pt=text.match(/(?:Veicula[çc][ãa]o iniciada em|Come[çc]ou a ser veiculado em)\s+(\d{1,2})\s+de\s+([a-zçãé]+)\s+de\s+(\d{4})/i);
-  if(pt) return validDate(Number(pt[3]),MONTHS[pt[2].toLowerCase()]||0,Number(pt[1]));
+  // Datas em formatos ingleses, brasileiros e espanhóis usados em cartões visíveis.
+  const enMonthFirst=text.match(/(?:Started running on|Started on)\s+([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/i);
+  if(enMonthFirst)return validDate(Number(enMonthFirst[3]),MONTHS[enMonthFirst[1].toLowerCase()]||0,Number(enMonthFirst[2]));
+  const enDayFirst=text.match(/(?:Started running on|Started on)\s+(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/i);
+  if(enDayFirst)return validDate(Number(enDayFirst[3]),MONTHS[enDayFirst[2].toLowerCase()]||0,Number(enDayFirst[1]));
+  const pt=text.match(/(?:Veicula[çc][ãa]o iniciada em|Come[çc]ou a ser veiculado em|In[ií]cio da veicula[çc][ãa]o\s*:?)\s+(\d{1,2})\s+de\s+([a-zçãé]+)\s+de\s+(\d{4})/i);
+  if(pt)return validDate(Number(pt[3]),MONTHS[pt[2].toLowerCase()]||0,Number(pt[1]));
+  const spanish=text.match(/(?:En circulaci[oó]n desde|Empez[oó] a circular el)\s+(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+de\s+(\d{4})/i);
+  if(spanish){
+    const meses:Record<string,number>={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+    return validDate(Number(spanish[3]),meses[spanish[2].toLowerCase()]||0,Number(spanish[1]));
+  }
   return null;
 }
-/** Nunca usa um texto de outro anúncio da mesma lista como evidência. */
-export function parseSpecificAdFromHtml(html:string, adId:string): {startedAt:string|null; status:LibraryAdStatus}|null {
-  const txt=normalizeVisibleText(html);
-  const marker=new RegExp(`(?:Library ID|Identifica[çc][ãa]o da biblioteca)\\s*:?\\s*${adId}(?!\\d)`,'i');
-  const hit=marker.exec(txt);
-  if(!hit)return null;
-  const following=txt.slice(hit.index+hit[0].length);
-  const nextAd=following.search(/(?:Library ID|Identifica[çc][ãa]o da biblioteca)\s*:?\s*\d{7,25}/i);
-  // Limita-se ao conteúdo EXATO do criativo. Não usa status globais da página.
-  const record=following.slice(0,Math.min(nextAd>=0?nextAd:900,900));
-  const startedAt=extractStartDate(record);
-  // O status só é aceito se ocorrer muito perto do próprio ID (nunca do filtro global).
-  const before=txt.slice(Math.max(0,hit.index-25),hit.index).trim();
-  const status:LibraryAdStatus=/(?:Inactive|Inativo)\s*$/i.test(before)?'inactive':
-    /(?:Active|Ativo)\s*$/i.test(before)?'active':'unknown';
+
+const ID_MARKER=/(?:Library ID|Identifica[çc][ãa]o da biblioteca|ID da biblioteca|Identificador da biblioteca|ID de la biblioteca|Identificador de la biblioteca)\s*:?\s*(\d{7,25})(?!\d)/gi;
+
+/**
+ * Analisa apenas data e status junto ao ID exato de um cartão cujo TEXTO está visível.
+ * Não busca informações em scripts, estado interno da Meta ou outro anúncio.
+ * Útil também para texto copiado pelo usuário na Biblioteca.
+ */
+export function parseCopiedMetaCardText(raw:string,adId:string): {startedAt:string|null;status:LibraryAdStatus}|null {
+  if(!/^\d{7,25}$/.test(adId)||!raw.trim())return null;
+  const txt=decodeHtml(raw.replace(/\s+/g,' ').trim());
+  const matches=Array.from(txt.matchAll(ID_MARKER));
+  const index=matches.findIndex(m=>m[1]===adId);
+  if(index<0)return null;
+  const match=matches[index];
+  const start=match.index!;
+  const previous=index>0?matches[index-1].index!+matches[index-1][0].length:0;
+  const next=index+1<matches.length?matches[index+1].index!:txt.length;
+  const before=txt.slice(Math.max(previous,start-65),start).trim();
+  const after=txt.slice(start+match[0].length,Math.min(next,start+match[0].length+850));
+
+  // O status do cartão normalmente aparece imediatamente antes da identificação.
+  const status:LibraryAdStatus=/(?:Inactive|Inativo|Inactivo|Inactif)\s*$/i.test(before)?'inactive':
+    /(?:Active|Ativo|Activo|Actif|Aktiv)\s*$/i.test(before)?'active':'unknown';
+  const startedAt=extractStartDate(after);
   return {startedAt,status};
+}
+
+/** Lê somente texto HTML visível, excluindo script/style. */
+export function parseSpecificAdFromHtml(html:string,adId:string): {startedAt:string|null;status:LibraryAdStatus}|null {
+  return parseCopiedMetaCardText(normalizeVisibleText(html),adId);
 }
 
 export function fallbackInspection(raw:string, message:string):MetaInspection {
