@@ -18,7 +18,7 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
   const set=(key:string,val:string)=>setValues(prev=>({...prev,[key]:val}));
   async function submit(e:React.FormEvent){e.preventDefault();setSaving(true);setError('');
     try{
-      const {data:{user},error:authError}=await supabase.auth.getUser();if(authError||!user)throw new Error('Faça login novamente.');
+      const {data:{user},error:authError}=await supabase.auth.getUser();if(authError)throw authError;if(!user)throw new Error('Sua sessão terminou. Entre novamente.');
       if(!values.name.trim())throw new Error('Informe o nome do produto.');
       for(const x of [values.landing_url,values.checkout_url])if(x&&!safeHttpUrl(x))throw new Error('Informe URLs válidas iniciadas com https:// ou http://.');
       const data={user_id:user.id,name:values.name.trim(),niche:values.niche.trim(),product_type:values.product_type,country:values.country.trim(),language:values.language,currency:values.currency,
@@ -70,7 +70,7 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
         </div>
       </details>
     </div>
-    {error&&<div className="full"><Feedback type="error">{error}</Feedback></div>}
+    {error&&<div className="full"><Feedback type="error">{error}</Feedback>{/conexão|supabase|hostinger|fetch/i.test(error)&&<a className="small-link" href="/diagnostico">Testar conexão com o banco</a>}</div>}
     <div className="form-actions"><button type="button" className="btn btn-ghost" onClick={onCancel}>{t('cancel')}</button>
       <button type="submit" className="btn btn-primary" disabled={saving}>{saving?<LoaderCircle size={16} className="spin"/>:<Save size={16}/>} {t('save')}</button>
     </div>
@@ -107,7 +107,7 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
   const set=(key:string,val:string|boolean)=>setValues(prev=>({...prev,[key]:val}));
   async function submit(e:React.FormEvent){e.preventDefault();setSaving(true);setError('');
     try{
-      const {data:{user}}=await supabase.auth.getUser();if(!user)throw new Error('Faça login novamente.');
+      const {data:{user},error:authError}=await supabase.auth.getUser();if(authError)throw authError;if(!user)throw new Error('Sua sessão terminou. Entre novamente.');
       if(!values.product_id&&!newProductName.trim())throw new Error(t('noProduct'));
       if(values.ad_url&&!safeHttpUrl(values.ad_url))throw new Error('O link do anúncio deve começar com https:// ou http://.');
       if(file){if(file.size>30*1024*1024)throw new Error('Arquivo de até 30 MB.');if(!['image/png','image/jpeg','image/webp','image/gif','video/mp4','video/webm'].includes(file.type))throw new Error('Formato permitido: PNG, JPG, WEBP, GIF, MP4 ou WEBM.');}
@@ -226,7 +226,7 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
         <label className="full flex gap-2 center"><input type="checkbox" checked={values.is_favorite} onChange={e=>set('is_favorite',e.target.checked)}/> {t('favorite')}</label>
       </div>
     </details></div>
-    {error&&<div className="full"><Feedback type="error">{error}</Feedback></div>}
+    {error&&<div className="full"><Feedback type="error">{error}</Feedback>{/conexão|supabase|hostinger|fetch/i.test(error)&&<a className="small-link" href="/diagnostico">Testar conexão com o banco</a>}</div>}
     <div className="form-actions">
       <button type="button" onClick={onCancel} className="btn btn-ghost">{t('cancel')}</button>
       <button type="submit" disabled={saving} className="btn btn-primary">{saving?<LoaderCircle size={16} className="spin"/>:<Save size={16}/>} {t('save')}</button>
