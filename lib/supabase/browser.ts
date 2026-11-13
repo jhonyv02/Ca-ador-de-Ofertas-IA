@@ -6,7 +6,7 @@ const EXPECTED_URL = 'https://brhnrukuwqbfhbyruzak.supabase.co';
 
 /** Impede que o app grave por engano no banco de outro SaaS. */
 export function browserClient() {
-  const url=(process.env.NEXT_PUBLIC_SUPABASE_URL||'').trim().replace(/\\/+$/,'');
+  const url=(process.env.NEXT_PUBLIC_SUPABASE_URL||'').trim().replace(/\/+$/,'');
   const key=(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'').trim();
 
   if(url!==EXPECTED_URL) {
