@@ -4,10 +4,11 @@ import { BrainCircuit, LoaderCircle, Sparkles, ShieldAlert, CheckCircle, AlertTr
 import type { Analysis } from '@/lib/types';
 import { useWorkspace } from '@/components/workspace';
 import { Feedback, ScoreRing } from '@/components/ui';
+import {useLocale} from '@/components/locale';
 export function AnalyzeButton({productId,adId}:{productId:string;adId?:string}){
-  const {refresh}=useWorkspace();const [pending,setPending]=useState(false);const [error,setError]=useState('');
+  const {refresh}=useWorkspace();const {locale}=useLocale();const [pending,setPending]=useState(false);const [error,setError]=useState('');
   async function analyze(){setPending(true);setError('');
-    try{const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId,adId})});
+    try{const res=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({productId,adId,locale})});
       const json=await res.json();if(!res.ok)throw new Error(json.error||'Falha na análise');await refresh();
     }catch(e){setError(e instanceof Error?e.message:'Erro na análise');}finally{setPending(false);}
   }
