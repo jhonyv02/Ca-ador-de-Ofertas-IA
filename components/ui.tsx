@@ -1,6 +1,7 @@
 'use client';
 import type { ReactNode } from 'react';
 import { X, LoaderCircle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import {useLocale} from '@/components/locale';
 export function PageHeading({eyebrow,title,description,action}:{eyebrow?:string;title:string;description?:string;action?:ReactNode}){
   return <div className="page-heading"><div><div className="eyebrow">{eyebrow||'SEU WORKSPACE'}</div><h1>{title}</h1>{description&&<p>{description}</p>}</div>{action&&<div className="heading-actions">{action}</div>}</div>;
 }
@@ -18,5 +19,5 @@ export function Empty({icon,headline,description,action}:{icon?:ReactNode;headli
 }
 export function Feedback({type,children}:{type:'error'|'success'|'info';children:ReactNode}){return <div className={`feedback ${type}`}>{type==='error'?<AlertCircle size={17}/>:<CheckCircle2 size={17}/>}<span>{children}</span></div>;}
 export function Load({label='Carregando dados...'}:{label?:string}){return <div className="loading"><LoaderCircle className="spin" size={22}/>{label}</div>;}
-export function StatusPill({value}:{value:string}) {const names:Record<string,string>={researching:'Pesquisando',ready:'Pronto para testar',testing:'Em teste',winning:'Validado',discarded:'Descartado',active:'Ativo',inactive:'Inativo',unknown:'Não verificado'};return <span className={`pill pill-${value}`}>{names[value]||value}</span>;}
+export function StatusPill({value}:{value:string}) {const {t}=useLocale();return <span className={`pill pill-${value}`}>{t(value)}</span>;}
 export function ScoreRing({value,size='md'}:{value:number;size?:'md'|'sm'}) {let color=value>=75?'#43e0a5':value>=45?'#efbd61':'#f58f8d';return <div className={`score-ring ${size}`} style={{'--score-color':color,'--score-deg':`${Math.max(0,Math.min(100,value))*3.6}deg`} as React.CSSProperties}><span>{value}</span></div>;}
