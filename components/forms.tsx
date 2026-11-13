@@ -5,7 +5,7 @@ import { useWorkspace } from '@/components/workspace';
 import { Field, Feedback } from '@/components/ui';
 import { safeHttpUrl } from '@/lib/utils';
 import { LoaderCircle, Save, ScanSearch, AlertTriangle } from 'lucide-react';
-import { parseMetaLibraryUrl, type MetaInspection } from '@/lib/meta-library';
+import { parseMetaLibraryUrl, parseCopiedMetaCardText, type MetaInspection } from '@/lib/meta-library';
 import {useLocale} from '@/components/locale';
 import {CurrencyPicker,MarketLanguagePicker} from '@/components/global-options';
 import {dbErrorMessage} from '@/lib/db-error';
@@ -86,6 +86,9 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
   const [values,setValues]=useState({...blankAd,...(ad?{...ad,first_seen_at:ad.first_seen_at||'',started_at:ad.started_at||''}:{product_id:productId||''})});
   const [file,setFile]=useState<File|null>(null);const [saving,setSaving]=useState(false);const [error,setError]=useState('');
   const [checking,setChecking]=useState(false);const [inspection,setInspection]=useState<MetaInspection|null>(null);
+  const [pasteOpen,setPasteOpen]=useState(false);
+  const [copiedText,setCopiedText]=useState('');
+  const [pasteMessage,setPasteMessage]=useState('');
   async function inspectLink(){
     setError('');setInspection(null);
     if(!values.ad_url.trim())return setError('Cole primeiro o link de um anúncio da Biblioteca da Meta.');
@@ -97,12 +100,35 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
       const imported=result as MetaInspection;
       setInspection(imported);
       setManual(imported.result!=='verified');
+      setPasteOpen(imported.result!=='verified');
+      setPasteMessage('');
       setValues(prev=>({...prev,platform:'meta',ad_url:imported.normalizedUrl,
         name:prev.name||`Anúncio Meta${imported.adId?' #'+imported.adId:''}`,
         started_at:imported.startedAt||prev.started_at,
         observed_active:imported.status!=='unknown'?imported.status:prev.observed_active}));
     }catch(e){setError(e instanceof Error?e.message:'Erro ao consultar a Meta.');}
     finally{setChecking(false);}
+  }
+  function readCopiedCard() {
+    setError('');setPasteMessage('');
+    let id:string|null=null;
+    try {id=parseMetaLibraryUrl(values.ad_url).adId;}
+    catch(e) {setError(e instanceof Error?e.message:'Confira o link do anúncio.');return;}
+    if(!id) {setError('Cole o link de um anúncio individual da Meta com ?id= antes de importar o texto.');return;}
+    if(!copiedText.trim()) {setError('Copie o texto do cartão na Biblioteca de Anúncios da Meta e cole no campo.');return;}
+    const found=parseCopiedMetaCardText(copiedText,id);
+    if(!found) {setError('O texto colado não contém o ID deste anúncio ('+id+'). Copie o cartão completo com Library ID, status e data.');return;}
+    if(!found.startedAt&&found.status==='unknown'){
+      setError('Identifiquei o ID no texto, mas não encontrei a data ou o status do anúncio. Você pode preencher manualmente.');
+      setManual(true);return;
+    }
+    setValues(prev=>({...prev,started_at:found.startedAt||prev.started_at,
+      observed_active:found.status!=='unknown'?found.status:prev.observed_active}));
+    setManual(true);
+    setPasteMessage('Dados encontrados no texto que VOCÊ copiou: '+
+      (found.startedAt?'início '+found.startedAt+'. ':'')+
+      (found.status!=='unknown'?'Status '+(found.status==='active'?'ativo':'inativo')+'. ':'')+
+      'Confira na Meta antes de salvar. A origem será marcada como preenchimento manual.');
   }
   const set=(key:string,val:string|boolean)=>setValues(prev=>({...prev,[key]:val}));
   async function submit(e:React.FormEvent){e.preventDefault();setSaving(true);setError('');
@@ -163,6 +189,7 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
           {checking?t('importing'):t('import')}
         </button>
         <button type="button" className="btn btn-ghost" onClick={()=>setManual(x=>!x)}>{t('manual')}</button>
+        <button type="button" className="btn btn-ghost" onClick={()=>setPasteOpen(x=>!x)}>Colar texto da Meta</button>
       </div>
     </div>
     {inspection&&<div className="full">
@@ -172,6 +199,21 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
           {inspection.startedAt&&<span> {t('startDate')}: {inspection.startedAt}.</span>}
         </span>
       </Feedback>
+    </div>}
+    {pasteOpen&&<div className="full manual-box">
+      <strong>Importar informações que aparecem no anúncio</strong>
+      <p style={{margin:'8px 0',fontSize:12,color:'#e8d9a8'}}>
+        Abra o anúncio na Biblioteca da Meta, copie o texto do cartão incluindo “Library ID” e “Started running on” e cole aqui. O sistema extrai data e status do ID correto.
+      </p>
+      <textarea className="textarea" rows={4} maxLength={12000} value={copiedText}
+        onChange={e=>setCopiedText(e.target.value)}
+        placeholder={'Ex.: Active\\nLibrary ID: 123456789012345\\nStarted running on Nov 10, 2026'}/>
+      <div className="flex gap-2 wrap mt-2">
+        <button type="button" className="btn btn-primary" onClick={readCopiedCard}><ScanSearch size={15}/>Ler texto copiado</button>
+        {values.ad_url&&safeHttpUrl(values.ad_url)&&<a className="btn btn-ghost" target="_blank" rel="noopener noreferrer"
+          href={safeHttpUrl(values.ad_url)}>Abrir na Meta</a>}
+      </div>
+      {pasteMessage&&<div className="mt-2"><Feedback type="success">{pasteMessage}</Feedback></div>}
     </div>}
     <div className="full">
       {products.length>0&&!addingProduct&&<>
