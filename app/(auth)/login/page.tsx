@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Target, LoaderCircle, ArrowRight } from 'lucide-react';
 import { browserClient } from '@/lib/supabase/browser';
 import { Field, Feedback } from '@/components/ui';
+import {dbErrorMessage} from '@/lib/db-error';
 
 export default function Login() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function Login() {
         router.refresh();
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha na autenticação.';
+      const msg = dbErrorMessage(err,'Falha na autenticação.');
       if (/email not confirmed|email.*not.*confirm|email.*não.*confirm/i.test(msg)) {
         setUnconfirmed(true);
         setError('Seu e-mail ainda não foi confirmado. Abra o link de confirmação recebido por e-mail ou solicite um novo abaixo.');
@@ -116,6 +117,7 @@ export default function Login() {
               autoComplete={signup ? 'new-password' : 'current-password'} />
           </Field>
           {error && <Feedback type="error">{error}</Feedback>}
+          {error && /conexão|supabase|hostinger|fetch/i.test(error) && <a className="small-link" href="/diagnostico">Testar conexão com o Supabase</a>}
           {message && <Feedback type="success">{message}</Feedback>}
           <button className="btn btn-primary wide" disabled={busy}>
             {busy ? <LoaderCircle className="spin" size={17}/> : <ArrowRight size={17}/>}
