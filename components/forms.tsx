@@ -8,6 +8,7 @@ import { LoaderCircle, Save, ScanSearch, AlertTriangle } from 'lucide-react';
 import { parseMetaLibraryUrl, type MetaInspection } from '@/lib/meta-library';
 import {useLocale} from '@/components/locale';
 import {CurrencyPicker,MarketLanguagePicker} from '@/components/global-options';
+import {dbErrorMessage} from '@/lib/db-error';
 const blankProduct={name:'',niche:'',product_type:'digital' as ProductType,country:'Brasil',language:'pt-BR',currency:'BRL',sale_price:'',fulfillment_cost:'',extra_cost:'',landing_url:'',checkout_url:'',landing_copy:'',promise:'',target_audience:'',notes:'',status:'researching' as ProductStatus};
 export function ProductForm({product,onComplete,onCancel}:{product?:Product;onComplete:(id:string)=>void;onCancel:()=>void}) {
   const {supabase,refresh}=useWorkspace();
@@ -28,7 +29,7 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
       if(product){const {error}=await supabase.from('products').update(data).eq('id',product.id);if(error)throw error;}
       else{const {data:created,error}=await supabase.from('products').insert(data).select('id').single();if(error)throw error;id=created.id;}
       await refresh();onComplete(id!);
-    }catch(err){setError(err instanceof Error?err.message:'Erro inesperado');}
+    }catch(err){setError(dbErrorMessage(err,'Não foi possível salvar o produto'));}
     finally{setSaving(false);}
   }
   return <form onSubmit={submit} className="form-grid">
@@ -146,7 +147,7 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
         if(logError)throw new Error(`Anúncio salvo, mas o histórico falhou: ${logError.message}`);
       }
       await refresh();onComplete();
-    }catch(err){setError(err instanceof Error?err.message:'Não foi possível salvar');}finally{setSaving(false);}
+    }catch(err){setError(dbErrorMessage(err,'Não foi possível salvar o anúncio'));}finally{setSaving(false);}
   }
   return <form className="form-grid" onSubmit={submit}>
     <div className="full form-intro"><strong>{t('essentials')}</strong><small>{t('autoOnly')}</small></div>
