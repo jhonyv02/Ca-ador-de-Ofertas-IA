@@ -60,12 +60,14 @@ export async function GET() {
         cache: 'no-store',
         redirect: 'manual',
         signal: AbortSignal.timeout(6500),
-        headers: {Accept: 'application/json'},
+        headers: {Accept: 'application/json', apikey: publishableKey},
       });
       result.httpStatus = response.status;
       result.serverReachable = true;
-      if (response.status >= 500) {
-        result.problem = 'O servidor chegou ao Supabase, mas recebeu erro HTTP ' + response.status + '.';
+      if (response.status === 401 || response.status === 403) {
+        result.problem = 'O Supabase recebeu a chave pública e recusou o acesso (HTTP '+response.status+'). Confira a Publishable key do mesmo projeto.';
+      } else if (response.status >= 400) {
+        result.problem = 'O Supabase respondeu com HTTP ' + response.status + '.';
       }
     } catch {
       result.serverReachable = false;
