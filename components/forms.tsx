@@ -78,6 +78,10 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
 const blankAd={name:'',product_id:'',platform:'meta' as Platform,advertiser:'',ad_url:'',ad_copy:'',hook:'',cta:'',notes:'',started_at:'',first_seen_at:new Date().toISOString().slice(0,10),observed_active:'unknown' as AdStatus,is_favorite:false,meta_library_id:null as string|null,link_check_result:'not_checked' as const,last_checked_at:null as string|null,last_check_message:'',started_at_source:'unknown' as const,status_source:'unknown' as const};
 export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:string;onComplete:()=>void;onCancel:()=>void}){
   const {supabase,products,refresh}=useWorkspace();
+  const {t}=useLocale();
+  const [addingProduct,setAddingProduct]=useState(false);
+  const [newProductName,setNewProductName]=useState('');
+  const [manual,setManual]=useState(false);
   const [values,setValues]=useState({...blankAd,...(ad?{...ad,first_seen_at:ad.first_seen_at||'',started_at:ad.started_at||''}:{product_id:productId||''})});
   const [file,setFile]=useState<File|null>(null);const [saving,setSaving]=useState(false);const [error,setError]=useState('');
   const [checking,setChecking]=useState(false);const [inspection,setInspection]=useState<MetaInspection|null>(null);
@@ -91,6 +95,7 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
       if(!res.ok)throw new Error(result.error||'Não foi possível consultar este link.');
       const imported=result as MetaInspection;
       setInspection(imported);
+      setManual(imported.result!=='verified');
       setValues(prev=>({...prev,platform:'meta',ad_url:imported.normalizedUrl,
         name:prev.name||`Anúncio Meta${imported.adId?' #'+imported.adId:''}`,
         started_at:imported.startedAt||prev.started_at,
@@ -102,7 +107,7 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
   async function submit(e:React.FormEvent){e.preventDefault();setSaving(true);setError('');
     try{
       const {data:{user}}=await supabase.auth.getUser();if(!user)throw new Error('Faça login novamente.');
-      if(!values.product_id)throw new Error('Selecione um produto.');if(!values.name.trim())throw new Error('Informe o nome do anúncio.');
+      if(!values.product_id&&!newProductName.trim())throw new Error(t('noProduct'));
       if(values.ad_url&&!safeHttpUrl(values.ad_url))throw new Error('O link do anúncio deve começar com https:// ou http://.');
       if(file){if(file.size>30*1024*1024)throw new Error('Arquivo de até 30 MB.');if(!['image/png','image/jpeg','image/webp','image/gif','video/mp4','video/webm'].includes(file.type))throw new Error('Formato permitido: PNG, JPG, WEBP, GIF, MP4 ou WEBM.');}
       let metaId:string|null=null;
@@ -112,7 +117,17 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
         !inspection&&ad?.started_at===values.started_at?ad.started_at_source:'manual'):'unknown';
       const statusSource=values.observed_active==='unknown'?'unknown':checkIsCurrent&&inspection?.status===values.observed_active?'public_page':
         !inspection&&ad?.observed_active===values.observed_active?ad.status_source:'manual';
-      const row={user_id:user.id,product_id:values.product_id,name:values.name.trim(),platform:values.platform,advertiser:values.advertiser.trim(),ad_url:safeHttpUrl(values.ad_url),ad_copy:values.ad_copy.trim(),hook:values.hook.trim(),cta:values.cta.trim(),notes:values.notes.trim(),started_at:values.started_at||null,first_seen_at:values.first_seen_at||null,observed_active:values.observed_active,is_favorite:values.is_favorite,
+      let selectedProductId=values.product_id;
+      if(!selectedProductId){
+        const {data:createdProduct,error:createError}=await supabase.from('products').insert({
+          user_id:user.id,name:newProductName.trim(),currency:'BRL',language:'pt-BR',
+          product_type:'digital',country:'Brasil'
+        }).select('id').single();
+        if(createError)throw new Error('Não foi possível criar o produto: '+createError.message);
+        selectedProductId=createdProduct.id;
+      }
+      const adName=values.name.trim()||(metaId?'Anúncio Meta #'+metaId:'Anúncio - '+(newProductName.trim()||products.find(p=>p.id===selectedProductId)?.name||'oferta'));
+      const row={user_id:user.id,product_id:selectedProductId,name:adName,platform:values.platform,advertiser:values.advertiser.trim(),ad_url:safeHttpUrl(values.ad_url),ad_copy:values.ad_copy.trim(),hook:values.hook.trim(),cta:values.cta.trim(),notes:values.notes.trim(),started_at:values.started_at||null,first_seen_at:values.first_seen_at||null,observed_active:values.observed_active,is_favorite:values.is_favorite,
         meta_library_id:metaId,
         link_check_result:checkIsCurrent?inspection!.result:ad?.ad_url===safeHttpUrl(values.ad_url)?ad.link_check_result:'not_checked',
         last_checked_at:checkIsCurrent?inspection!.checkedAt:ad?.ad_url===safeHttpUrl(values.ad_url)?ad.last_checked_at:null,
@@ -134,28 +149,86 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
     }catch(err){setError(err instanceof Error?err.message:'Não foi possível salvar');}finally{setSaving(false);}
   }
   return <form className="form-grid" onSubmit={submit}>
-    <Field label="Produto associado *"><select required className="input" value={values.product_id} onChange={e=>set('product_id',e.target.value)}><option value="">Selecione um produto</option>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
-    <Field label="Nome interno do anúncio *"><input required className="input" maxLength={150} value={values.name} onChange={e=>set('name',e.target.value)} placeholder="Ex.: Criativo 01 - Depoimento"/></Field>
-    <Field label="Plataforma"><select className="input" value={values.platform} onChange={e=>set('platform',e.target.value)}><option value="meta">Meta (Facebook / Instagram)</option><option value="tiktok">TikTok</option><option value="google">Google</option><option value="youtube">YouTube</option><option value="other">Outra</option></select></Field>
-    <Field label="Anunciante / página"><input className="input" maxLength={160} value={values.advertiser} onChange={e=>set('advertiser',e.target.value)} placeholder="Nome da loja ou anunciante"/></Field>
-    <div className="full"><Field label="Cole o link da Biblioteca de Anúncios da Meta"><input type="url" className="input" value={values.ad_url} onChange={e=>{set('ad_url',e.target.value);setInspection(null);}} placeholder="https://www.facebook.com/ads/library/?id=..."/></Field>
-      <div className="flex wrap gap-2 mt-2"><button type="button" className="btn btn-primary" onClick={inspectLink} disabled={checking||!values.ad_url.trim()}>{checking?<LoaderCircle size={15} className="spin"/>:<ScanSearch size={15}/>} {checking?'Consultando a Meta...':'Extrair dados do link'}</button><small className="muted">O ID vem do link. Data e status só são preenchidos se forem encontrados de forma confiável.</small></div>
+    <div className="full form-intro"><strong>{t('essentials')}</strong><small>{t('autoOnly')}</small></div>
+    <div className="full">
+      <Field label={t('metaLink')}>
+        <input type="url" className="input" autoFocus value={values.ad_url}
+          onChange={e=>{set('ad_url',e.target.value);setInspection(null);}}
+          placeholder="https://www.facebook.com/ads/library/?id=..."/>
+      </Field>
+      <div className="flex wrap gap-2 mt-2">
+        <button type="button" className="btn btn-primary" onClick={inspectLink} disabled={checking||!values.ad_url.trim()}>
+          {checking?<LoaderCircle size={15} className="spin"/>:<ScanSearch size={15}/>}
+          {checking?t('importing'):t('import')}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={()=>setManual(x=>!x)}>{t('manual')}</button>
+      </div>
     </div>
-    {inspection&&<div className="full"><Feedback type={inspection.result==='verified'?'success':'info'}>
-      <span><strong>{inspection.result==='verified'?'Dados públicos encontrados': 'Complete os dados manualmente'}</strong> — {inspection.message} {inspection.adId&&<span> ID: {inspection.adId}.</span>}
-      {inspection.startedAt&&<span> Início: {new Date(`${inspection.startedAt}T12:00:00Z`).toLocaleDateString('pt-BR',{timeZone:'UTC'})}.</span>}</span>
-    </Feedback></div>}
-    {!inspection&&values.platform==='meta'&&values.ad_url&&<div className="full"><p className="muted" style={{fontSize:12}}><AlertTriangle size={14} style={{display:'inline',verticalAlign:'middle'}}/> Caso o link esteja indisponível, você poderá salvar mesmo assim, preenchendo os campos abaixo e anexando um print.</p></div>}
-    <div className="full"><Field label="Criativo — print, imagem ou vídeo"><input className="file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" onChange={e=>setFile(e.target.files?.[0]||null)}/><small>Até 30 MB. Armazenamento privado no Supabase. Anúncios em vídeo são salvos, mas a análise visual automática é feita apenas para imagens.</small></Field></div>
-    <div className="full"><Field label="Copy do anúncio"><textarea className="textarea" maxLength={10000} value={values.ad_copy} onChange={e=>set('ad_copy',e.target.value)} placeholder="Cole o texto que o concorrente está usando..."/></Field></div>
-    <div className="full"><Field label="Gancho / Hook"><input className="input" maxLength={1000} value={values.hook} onChange={e=>set('hook',e.target.value)} placeholder="Primeiros 3 segundos ou primeira frase"/></Field></div>
-    <Field label="CTA"><input className="input" maxLength={200} value={values.cta} onChange={e=>set('cta',e.target.value)} placeholder="Ex.: Saiba mais, Compre agora"/></Field>
-    <Field label="Status observado (preencha somente se você conferiu)"><select className="input" value={values.observed_active} onChange={e=>set('observed_active',e.target.value)}><option value="unknown">Não verificado</option><option value="active">Ativo</option><option value="inactive">Inativo</option></select></Field>
-    <Field label="Data em que você encontrou"><input type="date" className="input" value={values.first_seen_at} onChange={e=>set('first_seen_at',e.target.value)}/></Field>
-    <Field label="Data de início (se conseguir confirmar)"><input type="date" max={new Date().toISOString().slice(0,10)} className="input" value={values.started_at} onChange={e=>set('started_at',e.target.value)}/></Field>
-    <div className="full"><Field label="Observações"><textarea className="textarea" maxLength={3000} value={values.notes} onChange={e=>set('notes',e.target.value)} placeholder="Ex.: 3 variações, foco na dor, chamada agressiva..."/></Field></div>
-    <label className="full flex gap-2 center" style={{fontSize:12}}><input type="checkbox" checked={values.is_favorite} onChange={e=>set('is_favorite',e.target.checked)}/> Favoritar este anúncio</label>
+    {inspection&&<div className="full">
+      <Feedback type={inspection.result==='verified'?'success':'info'}>
+        <span><strong>{inspection.result==='verified'?t('verified'):t('unavailable')}</strong>
+          {' — '+inspection.message}{inspection.adId&&<span> ID: {inspection.adId}.</span>}
+          {inspection.startedAt&&<span> {t('startDate')}: {inspection.startedAt}.</span>}
+        </span>
+      </Feedback>
+    </div>}
+    <div className="full">
+      {products.length>0&&!addingProduct&&<>
+        <Field label={t('associatedProduct')}>
+          <select className="input" value={values.product_id} onChange={e=>set('product_id',e.target.value)}>
+            <option value="">{t('selectProduct')}</option>
+            {products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </Field>
+        <button type="button" className="small-link inline-link" onClick={()=>{setAddingProduct(true);set('product_id','');}}>+ {t('newProduct')}</button>
+      </>}
+      {(products.length===0||addingProduct)&&<>
+        <Field label={t('quickProduct')}>
+          <input className="input" maxLength={150} value={newProductName} onChange={e=>setNewProductName(e.target.value)} placeholder={t('productPlaceholder')}/>
+        </Field>
+        {products.length>0&&<button type="button" className="small-link inline-link" onClick={()=>{setAddingProduct(false);setNewProductName('');}}>{t('selectProduct')}</button>}
+      </>}
+    </div>
+    <div className="full">
+      <Field label={t('upload')}>
+        <input className="file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" onChange={e=>setFile(e.target.files?.[0]||null)}/>
+      </Field>
+    </div>
+    {manual&&<div className="full manual-box">
+      <strong>{t('manual')}</strong>
+      <div className="advanced-grid mt-2">
+        <Field label={t('startDate')}><input type="date" max={new Date().toISOString().slice(0,10)} className="input" value={values.started_at} onChange={e=>set('started_at',e.target.value)}/></Field>
+        <Field label={t('observedStatus')}>
+          <select className="input" value={values.observed_active} onChange={e=>set('observed_active',e.target.value)}>
+            <option value="unknown">{t('unknown')}</option><option value="active">{t('active')}</option><option value="inactive">{t('inactive')}</option>
+          </select>
+        </Field>
+        <div className="full"><Field label={t('adCopy')}>
+          <textarea className="textarea" maxLength={10000} rows={3} value={values.ad_copy} onChange={e=>set('ad_copy',e.target.value)}/>
+        </Field></div>
+      </div>
+    </div>}
+    <div className="full"><details className="advanced-details">
+      <summary>{t('advanced')}</summary>
+      <div className="advanced-grid">
+        <Field label={t('adTitle')}><input className="input" maxLength={150} value={values.name} onChange={e=>set('name',e.target.value)} placeholder="Criativo 01"/></Field>
+        <Field label={t('platform')}><select className="input" value={values.platform} onChange={e=>set('platform',e.target.value)}>
+          <option value="meta">Meta (Facebook / Instagram)</option><option value="tiktok">TikTok</option>
+          <option value="google">Google</option><option value="youtube">YouTube</option><option value="other">Outra</option>
+        </select></Field>
+        <Field label={t('advertiser')}><input className="input" maxLength={160} value={values.advertiser} onChange={e=>set('advertiser',e.target.value)}/></Field>
+        <Field label={t('firstSeen')}><input type="date" className="input" value={values.first_seen_at} onChange={e=>set('first_seen_at',e.target.value)}/></Field>
+        <div className="full"><Field label={t('adCopy')}><textarea className="textarea" maxLength={10000} rows={4} value={values.ad_copy} onChange={e=>set('ad_copy',e.target.value)}/></Field></div>
+        <div className="full"><Field label={t('hook')}><input className="input" maxLength={1000} value={values.hook} onChange={e=>set('hook',e.target.value)}/></Field></div>
+        <Field label="CTA"><input className="input" maxLength={200} value={values.cta} onChange={e=>set('cta',e.target.value)}/></Field>
+        <div className="full"><Field label={t('notes')}><textarea className="textarea" maxLength={3000} value={values.notes} onChange={e=>set('notes',e.target.value)}/></Field></div>
+        <label className="full flex gap-2 center"><input type="checkbox" checked={values.is_favorite} onChange={e=>set('is_favorite',e.target.checked)}/> {t('favorite')}</label>
+      </div>
+    </details></div>
     {error&&<div className="full"><Feedback type="error">{error}</Feedback></div>}
-    <div className="form-actions"><button type="button" onClick={onCancel} className="btn btn-ghost">Cancelar</button><button type="submit" disabled={saving} className="btn btn-primary">{saving?<LoaderCircle size={16} className="spin"/>:<Save size={16}/>} {ad?'Salvar anúncio':'Salvar anúncio'}</button></div>
+    <div className="form-actions">
+      <button type="button" onClick={onCancel} className="btn btn-ghost">{t('cancel')}</button>
+      <button type="submit" disabled={saving} className="btn btn-primary">{saving?<LoaderCircle size={16} className="spin"/>:<Save size={16}/>} {t('save')}</button>
+    </div>
   </form>;
 }
