@@ -11,8 +11,8 @@ import {CurrencyPicker,MarketLanguagePicker} from '@/components/global-options';
 const blankProduct={name:'',niche:'',product_type:'digital' as ProductType,country:'Brasil',language:'pt-BR',currency:'BRL',sale_price:'',fulfillment_cost:'',extra_cost:'',landing_url:'',checkout_url:'',landing_copy:'',promise:'',target_audience:'',notes:'',status:'researching' as ProductStatus};
 export function ProductForm({product,onComplete,onCancel}:{product?:Product;onComplete:(id:string)=>void;onCancel:()=>void}) {
   const {supabase,refresh}=useWorkspace();
-  const {t}=useLocale();
-  const [values,setValues]=useState({...blankProduct,...(product?{...product,sale_price:product.sale_price?.toString()||'',fulfillment_cost:product.fulfillment_cost?.toString()||'',extra_cost:product.extra_cost?.toString()||''}:{})});
+  const {t,defaultCurrency}=useLocale();
+  const [values,setValues]=useState({...blankProduct,...(product?{...product,sale_price:product.sale_price?.toString()||'',fulfillment_cost:product.fulfillment_cost?.toString()||'',extra_cost:product.extra_cost?.toString()||''}:{currency:defaultCurrency})});
   const [saving,setSaving]=useState(false);const [error,setError]=useState('');
   const set=(key:string,val:string)=>setValues(prev=>({...prev,[key]:val}));
   async function submit(e:React.FormEvent){e.preventDefault();setSaving(true);setError('');
@@ -78,7 +78,7 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
 const blankAd={name:'',product_id:'',platform:'meta' as Platform,advertiser:'',ad_url:'',ad_copy:'',hook:'',cta:'',notes:'',started_at:'',first_seen_at:new Date().toISOString().slice(0,10),observed_active:'unknown' as AdStatus,is_favorite:false,meta_library_id:null as string|null,link_check_result:'not_checked' as const,last_checked_at:null as string|null,last_check_message:'',started_at_source:'unknown' as const,status_source:'unknown' as const};
 export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:string;onComplete:()=>void;onCancel:()=>void}){
   const {supabase,products,refresh}=useWorkspace();
-  const {t}=useLocale();
+  const {t,defaultCurrency}=useLocale();
   const [addingProduct,setAddingProduct]=useState(false);
   const [newProductName,setNewProductName]=useState('');
   const [manual,setManual]=useState(false);
@@ -120,7 +120,7 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
       let selectedProductId=values.product_id;
       if(!selectedProductId){
         const {data:createdProduct,error:createError}=await supabase.from('products').insert({
-          user_id:user.id,name:newProductName.trim(),currency:'BRL',language:'pt-BR',
+          user_id:user.id,name:newProductName.trim(),currency:defaultCurrency,language:'pt-BR',
           product_type:'digital',country:'Brasil'
         }).select('id').single();
         if(createError)throw new Error('Não foi possível criar o produto: '+createError.message);
