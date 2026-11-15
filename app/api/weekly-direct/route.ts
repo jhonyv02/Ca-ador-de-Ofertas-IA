@@ -4,7 +4,7 @@ import {serverClient} from '@/lib/supabase/server';
 import {directReadiness} from '@/lib/direct-traffic';
 import type {Ad,Product,TestRun} from '@/lib/types';
 export const runtime='nodejs';
-const inputSchema=z.object({budget:z.number().finite().min(30).max(30000)}).strict();
+const inputSchema=z.object({dailyBudget:z.number().finite().min(5).max(5000)}).strict();
 const verdicts=['launch_one','prepare_one','no_viable_offer'] as const;
 const outputFormat={
   type:'object',additionalProperties:false,
@@ -62,7 +62,7 @@ export async function POST(req:Request){
   if(Number(req.headers.get('content-length')||0)>2000)return NextResponse.json({error:'Solicitação muito grande.'},{status:413});
   let input:z.infer<typeof inputSchema>;
   try{input=inputSchema.parse(await req.json());}
-  catch{return NextResponse.json({error:'Informe orçamento total válido entre R$ 30 e R$ 30.000.'},{status:400});}
+  catch{return NextResponse.json({error:'Informe orçamento diário válido entre R$ 5 e R$ 5.000.'},{status:400});}
   const supabase=await serverClient();
   const {data:{user},error:authErr}=await supabase.auth.getUser();
   if(authErr||!user)return NextResponse.json({error:'Faça login para analisar as ofertas.'},{status:401});
@@ -121,14 +121,17 @@ export async function POST(req:Request){
     'Dê score comparativo de hipótese 0-100 mas reduza por evidência fraca. Nunca descreva como probabilidade ou retorno esperado.',
     'Inclua até 6 comparações realmente úteis. Ordene por chance de teste sustentável, NÃO por score de cadastro.',
     'Se oferecer plano de teste, limite-se a uma oferta e não reparta orçamento pequeno entre vários produtos.',
+    'O orçamento informado é DIÁRIO. Para 7 dias, o orçamento total é sete vezes o valor diário. Não confunda o limite diário com o orçamento total da semana.',
     'Nunca declarar vencedor com pouca amostra. Separar os sinais de clique, checkout iniciado, compra, custo e margem.',
     'Em sete_day_plan: exatamente 7 ações, uma para cada dia; se nada pronto, plano deve ser de preparação + validação antes de gastar.',
     'Cite fraquezas reais e por que NÃO testaria as outras ofertas. Defina regras para pausar ou revisar com base em CPA de equilíbrio e sinais de funil, com cautela para amostra pequena.',
     'A oferta concorrente serve para estudar dores e argumentos, nunca copiar texto, layout distintivo, imagens ou material. Conteúdos clínicos exigem revisão técnica profissional.',
     'Escreva sempre em português brasileiro, sem slogans. Produza somente JSON seguindo o schema.'
   ].join(' ');
+  const weeklyBudget=input.dailyBudget*7;
   const payload=JSON.stringify({date:new Date().toISOString().slice(0,10),
-    channel:'Meta Ads > tráfego direto para landing/checkout',budget_total_brl:input.budget,
+    channel:'Meta Ads > tráfego direto para landing/checkout',daily_budget_brl:input.dailyBudget,
+    budget_total_brl:weeklyBudget,planned_days:7,
     offers});
   let response:Response;
   try{
@@ -167,7 +170,8 @@ export async function POST(req:Request){
       comparison,ready:selected?.readiness.ready||false,
       cpa_break_even:selected?.readiness.cpa_break_even??null,
       cpa_conservative:selected?.readiness.cpa_conservative??null},
-    model,generated_at:new Date().toISOString(),budget_total_brl:input.budget,
+    model,generated_at:new Date().toISOString(),daily_budget_brl:input.dailyBudget,
+    budget_total_brl:weeklyBudget,
     disclaimer:'Parecer baseado nos seus registros, não em dados privados dos anúncios. Não prova lucratividade.'
   },{headers:{'Cache-Control':'no-store'}});
 }
