@@ -26,6 +26,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Testar extrator Meta
         run: npm run test:meta
+      - name: Verificar sintaxe do navegador remoto
+        run: node --check browser-worker/server.mjs
       - name: Verificar TypeScript
         run: npm run lint
       - name: Compilar Next.js para producao
