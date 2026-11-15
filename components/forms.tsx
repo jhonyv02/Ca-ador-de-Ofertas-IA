@@ -7,6 +7,8 @@ import { safeHttpUrl } from '@/lib/utils';
 import { LoaderCircle, Save, ScanSearch, AlertTriangle } from 'lucide-react';
 import { parseMetaLibraryUrl, parseCopiedMetaCardText, type MetaInspection } from '@/lib/meta-library';
 import {useLocale} from '@/components/locale';
+import {readSalesDraft} from '@/lib/sales-page';
+import Link from 'next/link';
 import {CurrencyPicker,MarketLanguagePicker} from '@/components/global-options';
 import {dbErrorMessage} from '@/lib/db-error';
 const blankProduct={name:'',niche:'',product_type:'digital' as ProductType,country:'Brasil',language:'pt-BR',currency:'BRL',sale_price:'',fulfillment_cost:'',extra_cost:'',landing_url:'',checkout_url:'',landing_copy:'',promise:'',target_audience:'',notes:'',status:'researching' as ProductStatus};
@@ -63,7 +65,7 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
           <Field label={t('cost')}><input type="number" min="0" step="0.01" className="input" value={values.fulfillment_cost} onChange={e=>set('fulfillment_cost',e.target.value)} placeholder="0.00"/></Field>
           <Field label={t('fees')}><input type="number" min="0" step="0.01" className="input" value={values.extra_cost} onChange={e=>set('extra_cost',e.target.value)} placeholder="0.00"/></Field>
           <Field label={t('checkout')}><input type="url" className="input" value={values.checkout_url} onChange={e=>set('checkout_url',e.target.value)} placeholder="https://..."/></Field>
-          <div className="full"><Field label={t('pageCopy')}><textarea className="textarea" maxLength={12000} rows={4} value={values.landing_copy} onChange={e=>set('landing_copy',e.target.value)}/></Field></div>
+          <div className="full">{product&&readSalesDraft(product.landing_copy)?<div className="info-note"><strong>Página de vendas salva no editor visual.</strong> A copy original está protegida neste formulário. <Link className="small-link" href={"/products/"+product.id+"/remodelar"}>Abrir editor de página</Link></div>:<Field label={t('pageCopy')}><textarea className="textarea" maxLength={12000} rows={4} value={values.landing_copy} onChange={e=>set('landing_copy',e.target.value)}/></Field>}</div>
           <div className="full"><Field label={t('promise')}><textarea className="textarea" maxLength={2000} rows={2} value={values.promise} onChange={e=>set('promise',e.target.value)}/></Field></div>
           <div className="full"><Field label={t('audience')}><input className="input" maxLength={300} value={values.target_audience} onChange={e=>set('target_audience',e.target.value)}/></Field></div>
           <div className="full"><Field label={t('notes')}><textarea className="textarea" maxLength={5000} value={values.notes} onChange={e=>set('notes',e.target.value)}/></Field></div>
