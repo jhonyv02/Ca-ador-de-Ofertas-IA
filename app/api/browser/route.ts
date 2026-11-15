@@ -115,7 +115,7 @@ async function importCapture(userId:string,data:Record<string,unknown>,
         const {data:signed}=await supabase.storage.from('creatives').createSignedUrl(path,3600);
         screenshotUrl=signed?.signedUrl||'';
         const notePath='Print privado (Supabase creatives): '+path;
-        const all=[existing?.notes||notes,notePath].filter(Boolean).join('\n').slice(0,4900);
+        const all=[(existing?.notes||notes).slice(0,4200),notePath].filter(Boolean).join('\n').slice(0,4800);
         const {error:saveError}=await supabase.from('products')
           .update({notes:all}).eq('id',id).eq('user_id',userId);
         if(saveError)warning='A oferta foi salva, mas o caminho do print não pôde ser anotado.';
