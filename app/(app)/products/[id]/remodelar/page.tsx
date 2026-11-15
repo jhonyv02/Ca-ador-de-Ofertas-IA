@@ -7,6 +7,7 @@ import {ArrowLeft,Check,ClipboardCopy,Download,ExternalLink,FileCode2,
 import {useWorkspace} from '@/components/workspace';
 import {Feedback,Load,PageHeading} from '@/components/ui';
 import {brl,safeHttpUrl} from '@/lib/utils';
+import {pageWinnerCandidates,suggestedWinner} from '@/lib/page-winner';
 import {readSalesDraft,salesPageHtml,serializeSalesDraft,starterPage,
   type SalesPageDraft} from '@/lib/sales-page';
 
@@ -25,7 +26,7 @@ function EditField({label,value,onChange,large=false,placeholder='',maxLength=la
 }
 export default function RemodelPage(){
   const {id}=useParams<{id:string}>();
-  const {products,ads,supabase,refresh,loading}=useWorkspace();
+  const {products,ads,testRuns,supabase,refresh,loading}=useWorkspace();
   const p=products.find(x=>x.id===id);
   const ownAds=ads.filter(a=>a.product_id===id);
   const initialized=useRef<string|null>(null);
@@ -42,6 +43,13 @@ export default function RemodelPage(){
   const [error,setError]=useState('');
   const [success,setSuccess]=useState('');
   const [aiModel,setAiModel]=useState('');
+  const [championMode,setChampionMode]=useState<'auto'|'manual'|'none'>('auto');
+  const [championProductId,setChampionProductId]=useState('');
+  const [autoImages,setAutoImages]=useState(true);
+  const [imageBusy,setImageBusy]=useState(false);
+  const [winnerNotice,setWinnerNotice]=useState('');
+  const candidates=useMemo(()=>pageWinnerCandidates(products,testRuns),[products,testRuns]);
+  const best=useMemo(()=>suggestedWinner(products,testRuns),[products,testRuns]);
   useEffect(()=>{
     if(!p||initialized.current===p.id)return;
     initialized.current=p.id;
@@ -71,6 +79,40 @@ export default function RemodelPage(){
       index===i?{...item,[key]:value}:item)}:prev);
     setSuccess('');
   }
+  async function createVisual(kind:'hero'|'preview',contents=actualContents,existing?:SalesPageDraft){
+    if(!p)return null;
+    const res=await fetch('/api/sales-visual',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({productId:p.id,kind,contents:contents.slice(0,1800),
+        label:kind==='hero'?(existing?.brand||p.name):'Prévia ilustrativa do kit digital'})});
+    const result=await res.json();
+    if(!res.ok)throw new Error(result.error||'Falha ao gerar imagem.');
+    return result.url as string;
+  }
+  async function generateImages(){
+    if(!draft||!p)return;
+    setImageBusy(true);setError('');setSuccess('');
+    try{
+      const url=await createVisual('hero',actualContents,draft);
+      const second=await createVisual('preview',actualContents,draft);
+      setDraft(prev=>prev?{...prev,imageUrl:url||prev.imageUrl,
+        gallery:[...(prev.gallery||[]).slice(0,2),
+          {label:'Mockup ilustrativo do material',url:second||''}]}:prev);
+      setSuccess('Mockups gerados. São imagens ilustrativas: revise antes de publicar e salve o rascunho.');
+    }catch(e){
+      setError(e instanceof Error?e.message:'A geração de imagens falhou. Você pode usar os mockups visuais do HTML.');
+    }finally{setImageBusy(false);}
+  }
+  function moveSection(key:NonNullable<SalesPageDraft['sectionOrder']>[number],direction:number){
+    setDraft(prev=>{
+      if(!prev)return prev;
+      const order=prev.sectionOrder?.length?prev.sectionOrder:['pain','benefits','mockups','includes','steps','faq'];
+      const index=order.indexOf(key),next=index+direction;
+      if(index<0||next<0||next>=order.length)return prev;
+      const copy=[...order];[copy[index],copy[next]]=[copy[next],copy[index]];
+      return {...prev,sectionOrder:copy};
+    });
+  }
   async function generate(){
     if(!p)return;
     setError('');setSuccess('');setGenerating(true);
@@ -79,14 +121,31 @@ export default function RemodelPage(){
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({productId:p.id,competitorCopy:referenceCopy.slice(0,7000),
           differentiation:differentiation.slice(0,2500),
-          actualContents:actualContents.slice(0,3500),tone})});
+          actualContents:actualContents.slice(0,3500),tone,
+          championMode,championProductId:championMode==='manual'?championProductId:undefined})});
       const result=await res.json();
       if(!res.ok)throw new Error(result.error||'Não foi possível gerar a copy.');
-      setDraft({...result.draft,
-        accent:draft?.accent||'#12b886',
-        imageUrl:draft?.imageUrl||''});
+      const nextDraft:SalesPageDraft={...result.draft,
+        imageUrl:draft?.imageUrl||'',
+        gallery:draft?.gallery||[]};
+      setDraft(nextDraft);
       setAiModel(result.model||'');
-      setSuccess('Copy nova gerada. Revise os fatos, itens incluídos e o checkout antes de publicar.');
+      setWinnerNotice(result.championNotice||'');
+      setSuccess('Nova copy e blocos visuais gerados. Revise tudo antes de publicar.');
+      if(autoImages){
+        setImageBusy(true);
+        try{
+          const hero=await createVisual('hero',actualContents,nextDraft);
+          setDraft(prev=>prev?{...prev,imageUrl:hero||prev.imageUrl}:prev);
+          const preview=await createVisual('preview',actualContents,nextDraft);
+          setDraft(prev=>prev?{...prev,gallery:[...(prev.gallery||[]).slice(0,2),
+            {label:'Imagem conceitual do material',url:preview||''}]}:prev);
+          setSuccess('Página e 2 imagens conceituais geradas. Verifique a entrega real e salve.');
+        }catch(e){
+          setError((e instanceof Error?e.message:'Falha na geração de imagem.')+
+            ' A página foi criada com mockups 3D em CSS mesmo assim.');
+        }finally{setImageBusy(false);}
+      }
     }catch(e){setError(e instanceof Error?e.message:'Erro ao gerar a página.');}
     finally{setGenerating(false);}
   }
@@ -174,6 +233,40 @@ export default function RemodelPage(){
     {error&&<div className="mb-2"><Feedback type="error">{error}</Feedback></div>}
     {success&&<div className="mb-2"><Feedback type="success">{success}</Feedback></div>}
     <section className="panel">
+      <h2 style={{fontSize:19,marginBottom:7}}>Página campeã: escolher a estrutura de referência</h2>
+      <p className="muted" style={{fontSize:13}}>
+        O Caçador compara resultados cadastrados por produto, não por versão de página.
+        A referência automática só é sugerida com pelo menos 40 cliques, 2 vendas e rascunho salvo.
+      </p>
+      {best?<div className="info-note mt-2">
+        <strong>Melhor referência com dados suficientes: {best.name}</strong>
+        <p style={{marginTop:6}}>{best.sales} venda(s) / {best.clicks} cliques · Conversão aproximada de cliques em compras: {((best.conversionRate||0)*100).toFixed(2)}% ·
+        CPA: {best.cpa===null?'não disponível':brl(best.cpa)}. Isso não prova qual bloco causou a conversão.</p>
+      </div>:<div className="info-note mt-2">
+        Nenhuma página própria possui amostra suficiente para eleger uma campeã. Você pode escolher manualmente um rascunho salvo ou gerar um modelo novo.
+      </div>}
+      <label className="field mt-3">Usar como inspiração da ordem e estilo dos blocos
+        <select className="input" value={championMode}
+          onChange={e=>setChampionMode(e.target.value as 'auto'|'manual'|'none')}>
+          <option value="auto">Escolher automaticamente por dados reais</option>
+          <option value="manual">Escolher minha página de referência</option>
+          <option value="none">Não usar campeã — criar nova estrutura</option>
+        </select>
+      </label>
+      {championMode==='manual'&&<label className="field mt-2">Página salva nesta conta
+        <select className="input" value={championProductId} onChange={e=>setChampionProductId(e.target.value)}>
+          <option value="">Selecione uma página para referência</option>
+          {candidates.map(c=><option value={c.productId} key={c.productId}>
+            {c.name} · {c.sales} vendas / {c.clicks} cliques {c.reliable?'(amostra mínima atingida)':''}
+          </option>)}
+        </select>
+      </label>}
+      <p className="micro mt-2">
+        A IA herda a hierarquia, ordem e cor da página própria selecionada; cria textos e mockups originais para a nova oferta.
+        Nunca transfere depoimentos, provas ou imagens do outro produto.
+      </p>
+    </section>
+    <section className="panel">
       <div className="flex between center wrap gap-2">
         <div><h2 style={{fontSize:19,marginBottom:7}}>1. Referências para criar a nossa versão</h2>
           <p className="muted" style={{fontSize:12,margin:0}}>
@@ -212,14 +305,20 @@ export default function RemodelPage(){
           <div className="info-note mt-2">
             A IA considera as copies de anúncios já salvos e o texto de referência. O botão Ler copy consulta apenas o HTML público do link; páginas com bloqueio ou conteúdo carregado por JavaScript podem exigir colagem manual.
           </div>
-          <button className="btn btn-primary wide mt-3" onClick={()=>void generate()} disabled={generating}>
+          <label className="flex center gap-2 mt-3" style={{fontSize:13}}>
+            <input type="checkbox" checked={autoImages} onChange={e=>setAutoImages(e.target.checked)}/>
+            Criar automaticamente 2 imagens com IA (custo da API)
+          </label>
+          <button className="btn btn-primary wide mt-3" onClick={()=>void generate()}
+            disabled={generating||imageBusy||(championMode==='manual'&&!championProductId)}>
             {generating?<LoaderCircle size={17} className="spin"/>:<Sparkles size={17}/>}
-            {generating?'Gerando copy original...':'Gerar nova página com IA'}
+            {generating?'Gerando página e mockups...':'Gerar página no estilo da campeã + mockups'}
           </button>
           <button className="btn wide mt-2" onClick={resetToStarter}>
             <FileCode2 size={16}/> Criar modelo base sem IA
           </button>
           {aiModel&&<p className="micro mt-2">Modelo utilizado: {aiModel}</p>}
+          {winnerNotice&&<p className="micro mt-2">{winnerNotice}</p>}
         </div>
       </div>
     </section>
@@ -250,8 +349,14 @@ export default function RemodelPage(){
           <EditField label="Texto do botão CTA" value={draft.ctaText} onChange={v=>change('ctaText',v)}/>
           <EditField label="Título de fechamento" value={draft.finalTitle} onChange={v=>change('finalTitle',v)}/>
           <EditField label="Copy de fechamento" large value={draft.finalBody} onChange={v=>change('finalBody',v)}/>
-          <EditField label="Imagem do NOSSO produto (URL pública HTTPS, opcional)"
+                    <EditField label="Imagem do NOSSO produto (URL pública HTTPS, opcional)"
             value={draft.imageUrl} onChange={v=>change('imageUrl',v)} placeholder="https://.../mockup.png"/>
+          <button className="btn wide mt-2" onClick={()=>void generateImages()} disabled={imageBusy||generating}>
+            {imageBusy?<LoaderCircle size={16} className="spin"/>:<Sparkles size={16}/>}
+            {imageBusy?'Criando 2 imagens...':'Gerar 2 imagens originais com IA'}
+          </button>
+          <p className="micro mt-2">Mockups são ilustrações e não comprovam a existência ou o resultado do material.
+            O botão usa saldo da API e requer o bucket público sales-page-assets configurado no Supabase.</p>
           <label className="field" style={{marginBottom:14}}>Cor principal
             <input className="input" type="color" value={/^#[0-9a-f]{6}$/i.test(draft.accent)?draft.accent:'#12b886'}
               onChange={e=>change('accent',e.target.value)} style={{height:48,padding:5}}/>
@@ -261,6 +366,49 @@ export default function RemodelPage(){
           {!checkout.trim()&&<div className="risk-tip">Checkout não cadastrado. Os botões de compra da prévia ficarão desabilitados.</div>}
         </div>
       </div>
+      <details className="advanced-details mt-3" open>
+        <summary>Editar mockups, imagens e ordem dos blocos</summary>
+        <div style={{padding:16}}>
+          <label className="field">Estilo visual
+            <select className="input" value={draft.visualStyle||'dark'}
+              onChange={e=>change('visualStyle',e.target.value)}>
+              <option value="dark">Escuro moderno</option>
+              <option value="light">Claro profissional</option>
+              <option value="warm">Quente editorial</option>
+            </select>
+          </label>
+          <EditField label="Título da galeria de mockups" value={draft.galleryTitle||''}
+            onChange={v=>change('galleryTitle',v)} />
+          <div className="micro mt-3">ORDEM DOS BLOCOS — os mockups 3D aparecem mesmo sem fotografias</div>
+          {(draft.sectionOrder||['pain','benefits','mockups','includes','steps','faq']).map((section,i)=>(
+            <div key={section} className="flex between center gap-2 mt-2" style={{padding:'8px 0'}}>
+              <span style={{fontSize:13}}>{i+1}. {({pain:'Problema',benefits:'Benefícios',
+                mockups:'Mockups e imagens',includes:'Conteúdo e preço',steps:'Como funciona',
+                faq:'Perguntas frequentes'} as Record<string,string>)[section]}</span>
+              <div className="flex gap-2">
+                <button className="btn" disabled={i===0} onClick={()=>moveSection(section,-1)}>↑</button>
+                <button className="btn" disabled={i===(draft.sectionOrder||[]).length-1} onClick={()=>moveSection(section,1)}>↓</button>
+              </div>
+            </div>
+          ))}
+          <div className="micro mt-3">GALERIA — links públicos HTTPS; imagens próprias ou geradas pela IA</div>
+          {(draft.gallery||[]).map((entry,i)=><div className="panel mt-2" key={i} style={{padding:12}}>
+            <EditField label={'Legenda '+(i+1)} value={entry.label} onChange={v=>setDraft(prev=>
+              prev?{...prev,gallery:(prev.gallery||[]).map((g,n)=>n===i?{...g,label:v}:g)}:prev)}/>
+            <EditField label="URL pública da imagem" value={entry.url} onChange={v=>setDraft(prev=>
+              prev?{...prev,gallery:(prev.gallery||[]).map((g,n)=>n===i?{...g,url:v}:g)}:prev)}/>
+            <button className="btn btn-danger" onClick={()=>setDraft(prev=>
+              prev?{...prev,gallery:(prev.gallery||[]).filter((_,n)=>n!==i)}:prev)}>
+              <Trash2 size={14}/> Remover imagem
+            </button>
+          </div>)}
+          <button className="btn mt-2" disabled={(draft.gallery||[]).length>=4}
+            onClick={()=>setDraft(prev=>prev?{...prev,gallery:[...(prev.gallery||[]),
+              {label:'Imagem do produto',url:''}]}:prev)}>
+            <Plus size={15}/> Adicionar imagem
+          </button>
+        </div>
+      </details>
       <details className="advanced-details">
           <summary>Editar perguntas frequentes (sem inventar garantias)</summary>
           <div style={{padding:16}}>
