@@ -45,7 +45,7 @@ export default function RemodelPage(){
   const [aiModel,setAiModel]=useState('');
   const [championMode,setChampionMode]=useState<'auto'|'manual'|'none'>('auto');
   const [championProductId,setChampionProductId]=useState('');
-  const [autoImages,setAutoImages]=useState(true);
+  const [autoImages,setAutoImages]=useState(false);
   const [imageBusy,setImageBusy]=useState(false);
   const [winnerNotice,setWinnerNotice]=useState('');
   const candidates=useMemo(()=>pageWinnerCandidates(products,testRuns),[products,testRuns]);
@@ -70,7 +70,7 @@ export default function RemodelPage(){
     setDraft(prev=>prev?{...prev,[key]:value}:prev);
     setSuccess('');
   }
-  function changeLines(key:'benefits'|'includes'|'steps',value:string,limit:number){
+  function changeLines(key:'benefits'|'includes'|'steps'|'secondPlanItems',value:string,limit:number){
     setDraft(prev=>prev?{...prev,[key]:splitLines(value,limit)}:prev);
     setSuccess('');
   }
@@ -123,12 +123,22 @@ export default function RemodelPage(){
         body:JSON.stringify({productId:p.id,competitorCopy:referenceCopy.slice(0,7000),
           differentiation:differentiation.slice(0,2500),
           actualContents:actualContents.slice(0,3500),tone,
-          championMode,championProductId:championMode==='manual'?championProductId:undefined})});
+          pageStyle:draft?.visualStyle==='editorial'?'editorial':'classic',championMode,championProductId:championMode==='manual'?championProductId:undefined})});
       const result=await res.json();
       if(!res.ok)throw new Error(result.error||'Não foi possível gerar a copy.');
       const nextDraft:SalesPageDraft={...result.draft,
         imageUrl:draft?.imageUrl||'',
-        gallery:draft?.gallery||[]};
+        gallery:draft?.gallery||[],
+        proofItems:draft?.proofItems||[],
+        bonusItems:draft?.bonusItems||[],
+        proofTitle:draft?.proofTitle||'O que dizem nossos clientes',
+        bonusTitle:draft?.bonusTitle||'Bônus incluídos no pacote',
+        pricingTitle:draft?.pricingTitle||'Escolha sua opção',
+        guaranteeText:draft?.guaranteeText||'',
+        secondPlanName:draft?.secondPlanName||'',
+        secondPlanPrice:draft?.secondPlanPrice||'',
+        secondPlanCheckout:draft?.secondPlanCheckout||'',
+        secondPlanItems:draft?.secondPlanItems||[]};
       setDraft(nextDraft);
       setAiModel(result.model||'');
       setWinnerNotice(result.championNotice||'');
@@ -164,6 +174,14 @@ export default function RemodelPage(){
       setSuccess('Texto público extraído. Revise e use apenas como referência; a copy nova será original.');
     }catch(e){setError(e instanceof Error?e.message:'Site bloqueou a leitura. Cole o texto manualmente.');}
     finally{setExtracting(false);}
+  }
+  function applyEditorialTemplate(){
+    setDraft(prev=>prev?{...prev,visualStyle:'editorial',accent:'#e5b853',
+      proofTitle:prev.proofTitle||'O que dizem nossos clientes',
+      bonusTitle:prev.bonusTitle||'Bônus incluídos no pacote completo',
+      pricingTitle:prev.pricingTitle||'Escolha sua opção',
+      galleryTitle:prev.galleryTitle||'Veja como o material funciona por dentro'}:prev);
+    setError('');setSuccess('Modelo azul-marinho e dourado aplicado! Veja o resultado na prévia.');
   }
   function resetToStarter(){
     if(!p)return;
@@ -231,6 +249,24 @@ export default function RemodelPage(){
       licença para revender o produto do concorrente porque não vamos revendê-lo.
       A entrega do nosso novo produto precisa existir antes de subir tráfego.
     </div>
+    <section className="panel" style={{border:'1px solid #ddbc70',background:'linear-gradient(125deg,#142744,#0c182e)',color:'#fff'}}>
+      <div className="flex between wrap center gap-3">
+        <div style={{maxWidth:650}}>
+          <div style={{fontSize:11,letterSpacing:2,color:'#efcc79',fontWeight:800}}>NOVO MODELO VISUAL · REFERÊNCIA ENVIADA</div>
+          <h2 style={{fontSize:21,margin:'9px 0'}}>Página premium: azul-marinho + dourado</h2>
+          <p style={{fontSize:13,color:'#e4e9f1',lineHeight:1.7,margin:0}}>
+            Hero com mockup, CTA dourado, blocos creme/branco, cards de benefícios, prévias,
+            bônus confirmados, planos, FAQ e fechamento escuro — organizado para celular.
+          </p>
+        </div>
+        <button className="btn" style={{background:'#e5b853',color:'#13233c',fontWeight:800}}
+          onClick={applyEditorialTemplate}>Aplicar modelo da imagem</button>
+      </div>
+      <p style={{fontSize:11,color:'#cdd7e6',marginTop:12}}>
+        Mockups em CSS e exportação HTML não precisam de API de imagens.
+        Avaliações, bônus e garantia só aparecem quando forem preenchidos com dados reais.
+      </p>
+    </section>
     {error&&<div className="mb-2"><Feedback type="error">{error}</Feedback></div>}
     {success&&<div className="mb-2"><Feedback type="success">{success}</Feedback></div>}
     <section className="panel">
@@ -308,7 +344,7 @@ export default function RemodelPage(){
           </div>
           <label className="flex center gap-2 mt-3" style={{fontSize:13}}>
             <input type="checkbox" checked={autoImages} onChange={e=>setAutoImages(e.target.checked)}/>
-            Criar automaticamente 2 imagens com IA (custo da API)
+            Gerar 2 imagens adicionais por IA (opcional, consome créditos da API)
           </label>
           <button className="btn btn-primary wide mt-3" onClick={()=>void generate()}
             disabled={generating||imageBusy||(championMode==='manual'&&!championProductId)}>
@@ -376,10 +412,16 @@ export default function RemodelPage(){
               <option value="dark">Escuro moderno</option>
               <option value="light">Claro profissional</option>
               <option value="warm">Quente editorial</option>
+              <option value="editorial">Azul-marinho + dourado (modelo da imagem)</option>
             </select>
           </label>
           <EditField label="Título da galeria de mockups" value={draft.galleryTitle||''}
             onChange={v=>change('galleryTitle',v)} />
+          {draft.visualStyle==='editorial'
+            ?<div className="info-note mt-3">O modelo da imagem utiliza uma sequência fixa de blocos para manter o visual:
+              hero → depoimentos confirmados → dor → prévias → benefícios → uso → bônus confirmados → preços → garantia confirmada → FAQ → CTA final.
+            </div>
+            :<>
           <div className="micro mt-3">ORDEM DOS BLOCOS — os mockups 3D aparecem mesmo sem fotografias</div>
           {(draft.sectionOrder||['pain','benefits','mockups','includes','steps','faq']).map((section,i)=>(
             <div key={section} className="flex between center gap-2 mt-2" style={{padding:'8px 0'}}>
@@ -392,6 +434,7 @@ export default function RemodelPage(){
               </div>
             </div>
           ))}
+            </>}
           <div className="micro mt-3">GALERIA — links públicos HTTPS; imagens próprias ou geradas pela IA</div>
           {(draft.gallery||[]).map((entry,i)=><div className="panel mt-2" key={i} style={{padding:12}}>
             <EditField label={'Legenda '+(i+1)} value={entry.label} onChange={v=>setDraft(prev=>
@@ -408,6 +451,63 @@ export default function RemodelPage(){
               {label:'Imagem do produto',url:''}]}:prev)}>
             <Plus size={15}/> Adicionar imagem
           </button>
+        </div>
+      </details>
+      {draft.visualStyle==='editorial'&&<details className="advanced-details mt-3" open>
+        <summary>Blocos extras do modelo: depoimentos, bônus, planos e garantia</summary>
+        <div style={{padding:16}}>
+          <p className="micro">Estes blocos são opcionais. Eles aparecem na página publicada somente depois de você cadastrar informações verdadeiras e verificadas.</p>
+          <EditField label="Título dos depoimentos" value={draft.proofTitle||''} onChange={v=>change('proofTitle',v)}/>
+          <div className="micro mt-3">DEPOIMENTOS REAIS — não gerar avaliações fictícias</div>
+          {(draft.proofItems||[]).map((item,i)=><div className="panel mt-2" key={i} style={{padding:12}}>
+            <EditField label={'Depoimento '+(i+1)} large value={item.quote}
+              onChange={v=>setDraft(prev=>prev?{...prev,proofItems:(prev.proofItems||[]).map((p,j)=>i===j?{...p,quote:v}:p)}:prev)}/>
+            <EditField label="Autor autorizado" value={item.author}
+              onChange={v=>setDraft(prev=>prev?{...prev,proofItems:(prev.proofItems||[]).map((p,j)=>i===j?{...p,author:v}:p)}:prev)}/>
+            <button className="btn btn-danger" onClick={()=>setDraft(prev=>prev?{...prev,proofItems:(prev.proofItems||[]).filter((_,j)=>j!==i)}:prev)}>
+              <Trash2 size={14}/> Remover</button>
+          </div>)}
+          <button className="btn mt-2" disabled={(draft.proofItems||[]).length>=6}
+            onClick={()=>setDraft(prev=>prev?{...prev,proofItems:[...(prev.proofItems||[]),{quote:'',author:''}]}:prev)}>
+            <Plus size={15}/> Adicionar depoimento verificado
+          </button>
+          <div style={{borderTop:'1px solid var(--border,#334155)',margin:'22px 0'}}/>
+          <EditField label="Título da seção de bônus" value={draft.bonusTitle||''}
+            onChange={v=>change('bonusTitle',v)}/>
+          <div className="micro">BÔNUS EFETIVAMENTE ENTREGUES</div>
+          {(draft.bonusItems||[]).map((item,i)=><div className="panel mt-2" key={i} style={{padding:12}}>
+            <EditField label={'Nome do bônus '+(i+1)} value={item.title}
+              onChange={v=>setDraft(prev=>prev?{...prev,bonusItems:(prev.bonusItems||[]).map((b,j)=>j===i?{...b,title:v}:b)}:prev)}/>
+            <EditField label="Descrição (o que está incluído)" large value={item.description}
+              onChange={v=>setDraft(prev=>prev?{...prev,bonusItems:(prev.bonusItems||[]).map((b,j)=>j===i?{...b,description:v}:b)}:prev)}/>
+            <EditField label="URL da imagem do bônus (HTTPS, opcional)" value={item.imageUrl||''}
+              onChange={v=>setDraft(prev=>prev?{...prev,bonusItems:(prev.bonusItems||[]).map((b,j)=>j===i?{...b,imageUrl:v}:b)}:prev)}/>
+            <button className="btn btn-danger" onClick={()=>setDraft(prev=>prev?{...prev,bonusItems:(prev.bonusItems||[]).filter((_,j)=>j!==i)}:prev)}>
+              <Trash2 size={14}/> Remover</button>
+          </div>)}
+          <button className="btn mt-2" disabled={(draft.bonusItems||[]).length>=6}
+            onClick={()=>setDraft(prev=>prev?{...prev,bonusItems:[...(prev.bonusItems||[]),{title:'',description:'',imageUrl:''}]}:prev)}>
+            <Plus size={15}/> Adicionar bônus existente
+          </button>
+          <div style={{borderTop:'1px solid var(--border,#334155)',margin:'22px 0'}}/>
+          <EditField label="Título dos planos/preços" value={draft.pricingTitle||''} onChange={v=>change('pricingTitle',v)}/>
+          <p className="micro">A opção principal usa o preço do cadastro do produto e o checkout configurado acima.
+            Só ofereça uma segunda opção quando existir um segundo produto ou plano real.</p>
+          <EditField label="Segundo plano (opcional)" value={draft.secondPlanName||''}
+            onChange={v=>change('secondPlanName',v)} placeholder="Ex.: Pacote completo"/>
+          <EditField label="Preço real do segundo plano" value={draft.secondPlanPrice||''}
+            onChange={v=>change('secondPlanPrice',v)} placeholder="Ex.: R$ 27,90"/>
+          <EditField label="Checkout HTTPS do segundo plano" value={draft.secondPlanCheckout||''}
+            onChange={v=>change('secondPlanCheckout',v)} placeholder="https://seu-checkout-do-segundo-plano"/>
+          <EditField label="Itens reais do segundo plano (um por linha)" large
+            value={lines(draft.secondPlanItems||[],8)}
+            onChange={v=>changeLines('secondPlanItems',v,8)}/>
+          <div style={{borderTop:'1px solid var(--border,#334155)',margin:'22px 0'}}/>
+          <EditField label="Garantia comprovada (deixe vazio se não existir)" large
+            value={draft.guaranteeText||''} maxLength={500}
+            onChange={v=>change('guaranteeText',v)}
+            placeholder="Informe somente a garantia que você realmente oferece e cumpre."/>
+          <p className="micro">Não há bônus, depoimentos ou garantia inventados pela IA. Se os campos ficarem vazios, os blocos não aparecem na página exportada.</p>
         </div>
       </details>
       <details className="advanced-details">
