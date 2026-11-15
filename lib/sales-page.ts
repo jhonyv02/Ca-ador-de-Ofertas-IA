@@ -1,5 +1,6 @@
 import type {Product} from '@/lib/types';
 import {safeHttpUrl} from '@/lib/utils';
+import {editorialSalesPageHtml} from '@/lib/editorial-sales-page';
 
 export const PAGE_PREFIX='CACADOR_ORIGINAL_PAGE_V1:';
 export type SalesPageDraft={
@@ -9,11 +10,21 @@ export type SalesPageDraft={
   faqTitle:string;faq:{question:string;answer:string}[];
   ctaText:string;finalTitle:string;finalBody:string;
   accent:string;imageUrl:string;
-  visualStyle?:'dark'|'light'|'warm';
+  visualStyle?:'dark'|'light'|'warm'|'editorial';
   sectionOrder?:('pain'|'benefits'|'mockups'|'includes'|'steps'|'faq')[];
   galleryTitle?:string;
   gallery?:{label:string;url:string}[];
   winnerReferenceId?:string;
+  proofTitle?:string;
+  proofItems?:{quote:string;author:string}[];
+  bonusTitle?:string;
+  bonusItems?:{title:string;description:string;imageUrl:string}[];
+  pricingTitle?:string;
+  guaranteeText?:string;
+  secondPlanName?:string;
+  secondPlanPrice?:string;
+  secondPlanCheckout?:string;
+  secondPlanItems?:string[];
   referenceCopy?:string;differentiation?:string;actualContents?:string;
 };
 const safeText=(v:string)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;')
@@ -42,8 +53,13 @@ export function starterPage(product:Product):SalesPageDraft{
     ctaText:'Quero conhecer o material',
     finalTitle:'Conheça a proposta e decida com tranquilidade',
     finalBody:'Confira o conteúdo, as condições de compra e se esta solução atende ao que você procura.',
-    accent:'#12b886',imageUrl:'',
-    visualStyle:'dark',sectionOrder:['pain','benefits','mockups','includes','steps','faq'],
+    accent:'#e5b853',imageUrl:'',
+    visualStyle:'editorial',
+    proofTitle:'O que dizem os clientes',proofItems:[],
+    bonusTitle:'Bônus incluídos no pacote',bonusItems:[],
+    pricingTitle:'Escolha a sua opção',guaranteeText:'',
+    secondPlanName:'',secondPlanPrice:'',secondPlanCheckout:'',secondPlanItems:[],
+    sectionOrder:['pain','benefits','mockups','includes','steps','faq'],
     galleryTitle:'Veja como o material pode ser apresentado',gallery:[]
   };
 }
@@ -61,10 +77,26 @@ export function readSalesDraft(value:string):SalesPageDraft|null{
     const sectionOrder=Array.isArray(raw.sectionOrder)?
       raw.sectionOrder.filter((x:unknown)=>typeof x==='string'&&validSectionKeys.includes(x)):undefined;
     return {...raw,sectionOrder:sectionOrder as SalesPageDraft['sectionOrder'],
-      visualStyle:['dark','light','warm'].includes(raw.visualStyle)?raw.visualStyle:'dark',
+      visualStyle:['dark','light','warm','editorial'].includes(raw.visualStyle)?raw.visualStyle:'dark',
       gallery:Array.isArray(raw.gallery)?raw.gallery.filter((v:unknown)=>!!v&&typeof v==='object'&&
         typeof (v as {label?:unknown}).label==='string'&&typeof (v as {url?:unknown}).url==='string').slice(0,4):[],
-      galleryTitle:typeof raw.galleryTitle==='string'?raw.galleryTitle:'Veja o material por dentro'} as SalesPageDraft;
+      galleryTitle:typeof raw.galleryTitle==='string'?raw.galleryTitle:'Veja o material por dentro',
+      proofItems:Array.isArray(raw.proofItems)?raw.proofItems.filter((p:unknown)=>
+        !!p&&typeof p==='object'&&typeof (p as {quote?:unknown}).quote==='string'&&
+        typeof (p as {author?:unknown}).author==='string').slice(0,6):[],
+      bonusItems:Array.isArray(raw.bonusItems)?raw.bonusItems.filter((b:unknown)=>
+        !!b&&typeof b==='object'&&typeof (b as {title?:unknown}).title==='string'&&
+        typeof (b as {description?:unknown}).description==='string').slice(0,6):[],
+      secondPlanItems:Array.isArray(raw.secondPlanItems)?raw.secondPlanItems.filter((x:unknown)=>
+        typeof x==='string').slice(0,8):[],
+      proofTitle:typeof raw.proofTitle==='string'?raw.proofTitle:'O que dizem os clientes',
+      bonusTitle:typeof raw.bonusTitle==='string'?raw.bonusTitle:'Bônus incluídos',
+      pricingTitle:typeof raw.pricingTitle==='string'?raw.pricingTitle:'Escolha sua opção',
+      guaranteeText:typeof raw.guaranteeText==='string'?raw.guaranteeText:'',
+      secondPlanName:typeof raw.secondPlanName==='string'?raw.secondPlanName:'',
+      secondPlanPrice:typeof raw.secondPlanPrice==='string'?raw.secondPlanPrice:'',
+      secondPlanCheckout:typeof raw.secondPlanCheckout==='string'?raw.secondPlanCheckout:''
+    } as SalesPageDraft;
   }catch{return null;}
 }
 export function serializeSalesDraft(d:SalesPageDraft){
@@ -74,6 +106,7 @@ export function serializeSalesDraft(d:SalesPageDraft){
 }
 export function salesPageHtml(d:SalesPageDraft,options:{name:string;price:number|null;
  currency:string;checkout:string}):string{
+  if(d.visualStyle==='editorial')return editorialSalesPageHtml(d,options);
   const accent=cssColor(d.accent);
   const checkout=options.checkout.trim().toLowerCase().startsWith('https://')?url(options.checkout):'';
   const price=options.price===null?'Preço a confirmar':new Intl.NumberFormat('pt-BR',
