@@ -112,7 +112,7 @@ export async function POST(req:Request){
     'Analise APENAS dados fornecidos; NÃO visitou URLs. Não invente CTR, CPM, CPC, CPA, conversão, vendas ou ROAS.',
     'Os campos readiness e cpa_conservative são calculados pelo servidor. Respeite os bloqueios.',
     'decision launch_one só é permitido quando readiness.ready é verdadeiro para o produto escolhido.',
-    'Não confunda produtos pesquisados com produtos próprios: direitos, entrega, página própria, checkout e criativo devem estar confirmados para rodar.',
+    'Os produtos serão recriados do zero com conteúdo autoral. Não exigir licença para revender o material do concorrente; exigir que o NOVO produto esteja realmente finalizado, seja original, com entrega, página própria, checkout e criativo confirmados.',
     'Se nenhum produto estiver pronto, escolha prepare_one com a ideia que merece preparar PRIMEIRO; ou no_viable_offer se faltarem dados demais.',
     'Não existe vencedor comprovado apenas por dias de anúncio de concorrente ou score de completude.',
     'Avalie nicho/dor real, público identificável, preço vs margem e CPA sustentável, clareza da promessa, diferenciação, funil de uma etapa, velocidade de implementação, sazonalidade atual, riscos Meta (principalmente alegações de saúde), autorização e capacidade de entrega.',
@@ -124,7 +124,7 @@ export async function POST(req:Request){
     'Nunca declarar vencedor com pouca amostra. Separar os sinais de clique, checkout iniciado, compra, custo e margem.',
     'Em sete_day_plan: exatamente 7 ações, uma para cada dia; se nada pronto, plano deve ser de preparação + validação antes de gastar.',
     'Cite fraquezas reais e por que NÃO testaria as outras ofertas. Defina regras para pausar ou revisar com base em CPA de equilíbrio e sinais de funil, com cautela para amostra pequena.',
-    'Conselho técnico não substitui direitos de uso dos conteúdos e revisão técnica de materiais clínicos.',
+    'A oferta concorrente serve para estudar dores e argumentos, nunca copiar texto, layout distintivo, imagens ou material. Conteúdos clínicos exigem revisão técnica profissional.',
     'Escreva sempre em português brasileiro, sem slogans. Produza somente JSON seguindo o schema.'
   ].join(' ');
   const payload=JSON.stringify({date:new Date().toISOString().slice(0,10),
