@@ -1,23 +1,28 @@
 import type {Ad, Product, TestRun} from '@/lib/types';
 
-export type DirectCheck = 'rights'|'page'|'checkout'|'creative';
+export type DirectCheck = 'rights'|'page'|'checkout'|'creative'|'tracking'|'delivery';
 export const directCheckLabels:Record<DirectCheck,string>={
   rights:'Tenho direitos de comercialização e entrega',
   page:'Página própria publicada e revisada no celular',
   checkout:'Checkout testado, inclusive pagamento e pós-compra',
   creative:'Criativo e copy prontos e revisados para a Meta',
+  tracking:'Evento de compra (Purchase) configurado e testado',
+  delivery:'Entrega do produto e suporte pós-compra testados',
 };
 const tags:Record<DirectCheck,string>={
   rights:'#direitos_confirmados',
   page:'#pagina_propria_validada',
   checkout:'#checkout_testado',
   creative:'#criativo_aprovado',
+  tracking:'#compra_rastreada',
+  delivery:'#entrega_testada',
 };
 export const checkKeys=Object.keys(tags) as DirectCheck[];
 export function directFlags(p:Product):Record<DirectCheck,boolean>{
   const lines=(p.notes||'').split(/\r?\n/).map(x=>x.trim());
   return {rights:lines.includes(tags.rights),page:lines.includes(tags.page),
-    checkout:lines.includes(tags.checkout),creative:lines.includes(tags.creative)};
+    checkout:lines.includes(tags.checkout),creative:lines.includes(tags.creative),
+    tracking:lines.includes(tags.tracking),delivery:lines.includes(tags.delivery)};
 }
 export function notesWithFlag(notes:string,key:DirectCheck,enabled:boolean){
   const flag=tags[key];
