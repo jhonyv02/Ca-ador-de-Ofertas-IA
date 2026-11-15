@@ -18,7 +18,7 @@ test('oferta pesquisada sem custos e direitos NÃO fica liberada',()=>{
 });
 test('checklist explícito e custos conhecidos desbloqueiam a análise de teste',()=>{
   let notes=raw.notes;
-  for(const k of ['rights','page','checkout','creative']) notes=notesWithFlag(notes,k,true);
+  for(const k of ['rights','page','checkout','creative','tracking','delivery']) notes=notesWithFlag(notes,k,true);
   const product={...raw,notes,fulfillment_cost:3,extra_cost:4};
   const gate=directReadiness(product,[],[]);
   assert.equal(gate.ready,true);
@@ -30,7 +30,7 @@ test('checklist explícito e custos conhecidos desbloqueiam a análise de teste'
 });
 test('margem negativa bloqueia mesmo com quatro confirmações',()=>{
   let notes=raw.notes;
-  for(const k of ['rights','page','checkout','creative'])notes=notesWithFlag(notes,k,true);
+  for(const k of ['rights','page','checkout','creative','tracking','delivery'])notes=notesWithFlag(notes,k,true);
   const gate=directReadiness({...raw,notes,fulfillment_cost:50,extra_cost:2},[],[]);
   assert.equal(gate.ready,false);
   assert.ok(gate.blockers.some(x=>x.includes('Margem')));
