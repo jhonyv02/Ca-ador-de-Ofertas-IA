@@ -18,7 +18,7 @@ export type SalesPageDraft={
   gallery?:{label:string;url:string}[];
   winnerReferenceId?:string;
   proofTitle?:string;
-  proofItems?:{quote:string;author:string}[];
+  proofItems?:{quote:string;author:string;imageUrl?:string}[];
   bonusTitle?:string;
   bonusItems?:{title:string;description:string;imageUrl:string}[];
   pricingTitle?:string;
