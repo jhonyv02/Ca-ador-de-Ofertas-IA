@@ -83,7 +83,8 @@ const ID_MARKER=/(?:Library ID|Identifica[çc][ãa]o da biblioteca|ID da bibliot
  */
 export function parseCopiedMetaCardText(raw:string,adId:string): {startedAt:string|null;status:LibraryAdStatus}|null {
   if(!/^\d{7,25}$/.test(adId)||!raw.trim())return null;
-  const txt=decodeHtml(raw.replace(/\s+/g,' ').trim());
+  // Cards copiados podem vir com quebras reais ou com a sequência literal "\\n".
+  const txt=decodeHtml(raw.replace(/\\n/g,' ').replace(/\s+/g,' ').trim());
   const matches=Array.from(txt.matchAll(ID_MARKER));
   const index=matches.findIndex(m=>m[1]===adId);
   if(index<0)return null;
