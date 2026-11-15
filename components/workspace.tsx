@@ -21,20 +21,42 @@ export function WorkspaceProvider({children}:{children:React.ReactNode}) {
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState('');
   const refresh=useCallback(async()=>{
-    try {
-    const results=await Promise.all([
+    // Cada seção tem carga independente: erro em anúncios/análises não pode
+    // esconder produtos válidos nem travar o radar de ofertas.
+    const jobs=[
       supabase.from('products').select('*').order('created_at',{ascending:false}),
       supabase.from('ads').select('*').order('created_at',{ascending:false}),
       supabase.from('analyses').select('*').order('created_at',{ascending:false}),
       supabase.from('ad_snapshots').select('*').order('checked_at',{ascending:false}),
       supabase.from('test_runs').select('*').order('created_at',{ascending:false})
-    ]);
-    const bad=results.find(r=>r.error);
-    setError(bad?.error?dbErrorMessage(bad.error,'Falha ao consultar o banco'):'');
-    if(!bad){setProducts((results[0].data||[]) as Product[]);setAds((results[1].data||[]) as Ad[]);
-      setAnalyses((results[2].data||[]) as Analysis[]);setSnapshots((results[3].data||[]) as Snapshot[]);
-      setTestRuns((results[4].data||[]) as TestRun[]);}
-    } catch (err) {
+    ];
+    const names=['ofertas','anúncios','análises','histórico','testes'];
+    try {
+      const results=await Promise.allSettled(jobs);
+      const failures:string[]=[];
+      for(let i=0;i<results.length;i++){
+        const item=results[i];
+        if(item.status==='rejected'){
+          failures.push(names[i]+': '+dbErrorMessage(item.reason,'Falha de conexão'));
+          continue;
+        }
+        const {data,error}=item.value;
+        if(error){
+          failures.push(names[i]+': '+dbErrorMessage(error,'Erro no banco'));
+          continue;
+        }
+        switch(i){
+          case 0:setProducts((data||[]) as Product[]);break;
+          case 1:setAds((data||[]) as Ad[]);break;
+          case 2:setAnalyses((data||[]) as Analysis[]);break;
+          case 3:setSnapshots((data||[]) as Snapshot[]);break;
+          case 4:setTestRuns((data||[]) as TestRun[]);break;
+        }
+      }
+      setError(failures.length?
+        'Algumas seções não carregaram. As seções disponíveis continuam acessíveis. '+failures.join(' | '):
+        '');
+    } catch(err) {
       setError(dbErrorMessage(err,'Falha de conexão com o Supabase'));
     } finally {
       setLoading(false);
