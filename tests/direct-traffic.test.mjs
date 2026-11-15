@@ -9,28 +9,28 @@ const raw={
   promise:'Material digital',target_audience:'Profissionais',notes:'Pesquisa\n#chatgpt:exemplo',
   status:'researching'
 };
-test('oferta pesquisada sem custos e direitos NÃO fica liberada',()=>{
+test('oferta pesquisada sem custos e conteúdo próprio NÃO fica liberada',()=>{
   const gate=directReadiness(raw,[],[]);
   assert.equal(gate.ready,false);
   assert.equal(gate.breakEvenCpa,null);
-  assert.ok(gate.blockers.some(x=>x.includes('direitos')));
+  assert.ok(gate.blockers.some(x=>x.includes('conteúdo próprio')));
   assert.ok(gate.blockers.some(x=>x.includes('Custos')));
 });
 test('checklist explícito e custos conhecidos desbloqueiam a análise de teste',()=>{
   let notes=raw.notes;
-  for(const k of ['rights','page','checkout','creative','tracking','delivery']) notes=notesWithFlag(notes,k,true);
+  for(const k of ['content','page','checkout','creative','tracking','delivery']) notes=notesWithFlag(notes,k,true);
   const product={...raw,notes,fulfillment_cost:3,extra_cost:4};
   const gate=directReadiness(product,[],[]);
   assert.equal(gate.ready,true);
   assert.equal(gate.breakEvenCpa,40);
   assert.equal(gate.cautiousCpa,28);
   assert.equal(directFlags(product).checkout,true);
-  assert.equal(notesWithFlag(notes,'rights',true),notes);
-  assert.equal(notesWithFlag(notes,'rights',false).includes('#direitos_confirmados'),false);
+  assert.equal(notesWithFlag(notes,'content',true),notes);
+  assert.equal(notesWithFlag(notes,'content',false).includes('#conteúdo próprio_confirmados'),false);
 });
 test('margem negativa bloqueia mesmo com quatro confirmações',()=>{
   let notes=raw.notes;
-  for(const k of ['rights','page','checkout','creative','tracking','delivery'])notes=notesWithFlag(notes,k,true);
+  for(const k of ['content','page','checkout','creative','tracking','delivery'])notes=notesWithFlag(notes,k,true);
   const gate=directReadiness({...raw,notes,fulfillment_cost:50,extra_cost:2},[],[]);
   assert.equal(gate.ready,false);
   assert.ok(gate.blockers.some(x=>x.includes('Margem')));
