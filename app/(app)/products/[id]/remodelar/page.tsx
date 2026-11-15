@@ -12,14 +12,14 @@ import {readSalesDraft,salesPageHtml,serializeSalesDraft,starterPage,
 
 type Tone='direta'|'profissional'|'acolhedora';
 const lines=(values:string[],limit:number)=>values.slice(0,limit).join('\n');
-const splitLines=(value:string,limit:number)=>value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).slice(0,limit);
-function EditField({label,value,onChange,large=false,placeholder=''}:{
-  label:string;value:string;onChange:(value:string)=>void;large?:boolean;placeholder?:string
+const splitLines=(value:string,limit:number)=>value.split(/\r?\n/).slice(0,limit);
+function EditField({label,value,onChange,large=false,placeholder='',maxLength=400}:{
+  label:string;value:string;onChange:(value:string)=>void;large?:boolean;placeholder?:string;maxLength?:number
 }){
   return <label className="field" style={{marginBottom:14}}>{label}
-    {large?<textarea className="textarea" rows={3} maxLength={1000} value={value}
+    {large?<textarea className="textarea" rows={3} maxLength={maxLength} value={value}
       onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>:
-      <input className="input" value={value} maxLength={400}
+      <input className="input" value={value} maxLength={maxLength}
         onChange={e=>onChange(e.target.value)} placeholder={placeholder}/>}
   </label>;
 }
@@ -28,7 +28,6 @@ export default function RemodelPage(){
   const {products,ads,supabase,refresh,loading}=useWorkspace();
   const p=products.find(x=>x.id===id);
   const ownAds=ads.filter(a=>a.product_id===id);
-  const savedDraft=p?readSalesDraft(p.landing_copy):null;
   const initialized=useRef<string|null>(null);
   const [draft,setDraft]=useState<SalesPageDraft|null>(null);
   const [referenceCopy,setReferenceCopy]=useState('');
@@ -169,13 +168,13 @@ export default function RemodelPage(){
       </div>
       <div className="two-col mt-3">
         <div>
-          <EditField label="Copy, ganchos e argumentos do concorrente (cole aqui)" large
+          <EditField label="Copy, ganchos e argumentos do concorrente (cole aqui)" large maxLength={7000}
             value={referenceCopy} onChange={v=>setReferenceCopy(v.slice(0,7000))}
             placeholder="Cole o texto da página ou do anúncio. A IA usa somente os argumentos gerais, sem reproduzir o texto."/>
-          <EditField label="Nosso diferencial real" large value={differentiation}
+          <EditField label="Nosso diferencial real" large maxLength={2500} value={differentiation}
             onChange={v=>setDifferentiation(v.slice(0,2500))}
             placeholder="Qual será a diferença do nosso produto original?"/>
-          <EditField label="O que já existe no NOSSO produto (entregáveis confirmados)" large
+          <EditField label="O que já existe no NOSSO produto (entregáveis confirmados)" large maxLength={3500}
             value={actualContents} onChange={v=>setActualContents(v.slice(0,3500))}
             placeholder="Ex.: 30 fichas próprias revisadas, arquivo PDF, guia de uso... Não inclua o que ainda não está pronto."/>
         </div>
@@ -240,8 +239,7 @@ export default function RemodelPage(){
           {!checkout.trim()&&<div className="risk-tip">Checkout não cadastrado. Os botões de compra da prévia ficarão desabilitados.</div>}
         </div>
       </div>
-      <div className="advanced-details">
-        <details>
+      <details className="advanced-details">
           <summary>Editar perguntas frequentes (sem inventar garantias)</summary>
           <div style={{padding:16}}>
             {draft.faq.map((q,i)=><div className="panel" key={i}>
@@ -256,8 +254,7 @@ export default function RemodelPage(){
               <Plus size={15}/> Adicionar FAQ
             </button>
           </div>
-        </details>
-      </div>
+      </details>
     </section>
     <section className="panel">
       <div className="flex between center wrap gap-2">
