@@ -14,7 +14,8 @@ const requestSchema=z.object({
   actualContents:z.string().max(3500).default(''),
   tone:z.enum(['direta','profissional','acolhedora']).default('direta'),
   championMode:z.enum(['auto','manual','none']).default('auto'),
-  championProductId:z.string().uuid().optional()
+  championProductId:z.string().uuid().optional(),
+  pageStyle:z.enum(['editorial','classic']).default('editorial')
 }).strict();
 const field=(max:number)=>z.string().trim().min(1).max(max);
 const draftSchema=z.object({
@@ -113,6 +114,9 @@ export async function POST(req:Request){
     original_product_differentiation:input.differentiation,
     actual_product_contents_that_exist:input.actualContents,
     tone:input.tone,
+    page_style:input.pageStyle==='editorial'?
+      'Premium editorial page: centered navy hero with product mockup and gold CTA; cream and white sections; real testimonials only; pain panel; product visual preview; benefits grid; steps; confirmed bonuses; optional genuine pricing tiers; guarantee only when verified; FAQ; navy closing CTA. Mobile-first.':
+      'Classic landing page structure',
     own_champion_page:referenceDraft?{
       ordering:referenceDraft.sectionOrder||['pain','benefits','mockups','includes','steps','faq'],
       visual_theme:referenceDraft.visualStyle||'dark',
@@ -133,7 +137,8 @@ export async function POST(req:Request){
     'O produto ORIGINAL do cliente pode não estar pronto. Os dados da oferta de referência são apenas referência, NÃO evidência de que já produzimos os arquivos.',
     'Liste em "includes" somente entregáveis que o usuário tenha confirmado no campo actual_product_contents_that_exist. Se estiver vazio, coloque itens claros de PLACEHOLDER como "Descreva aqui o conteúdo que será criado e entregue", sem inventar módulos, quantidades ou bônus.',
     'Não invente avaliações, números de estudantes, percentuais de resultado, certificações, benefícios clínicos, depoimentos, escassez, prazo, desconto, garantia ou prova social.',
-    'Se houver own_champion_page, acompanhe a ORDEM dos blocos e a hierarquia visual daquele rascunho na nova página; adapte o conteúdo ao NOVO produto, sem reproduzir copy, marca ou imagens do campeão.',
+    'Se houver own_champion_page, acompanhe o RITMO de comunicação daquela página própria, sem reproduzir copy, marca ou imagens; o estilo editorial escolhido pelo usuário tem prioridade sobre as cores do campeão.',
+    'No preset editorial, escreva títulos curtos e conteúdos que combinem com um layout longo, com hero, galeria de mockups, seções claras, benefícios em cards, passos, preço, FAQ e fechamento. Depoimentos, bônus e garantia somente se o usuário informar e confirmar fatos reais.',
     'Se não houver campeão qualificado por testes reais, não afirme que existe página vencedora. O layout padrão pode ser usado como hipótese.',
     'Entregue copy breve que deixe espaço para mockups 3D automáticos e uma galeria de imagens, sem afirmar que fotografias ilustrativas são amostras autênticas.',
     'Não afirme que viu a página no URL. Não houve navegação externa: trate a URL apenas como referência.',
@@ -170,12 +175,16 @@ export async function POST(req:Request){
   const checked=draftSchema.safeParse(parsed);
   if(!checked.success)return NextResponse.json({error:'A IA retornou um formato incompleto. Tente gerar novamente.'},{status:502});
   const draft:SalesPageDraft={...checked.data,
-    accent:referenceDraft?.accent||'#12b886',imageUrl:'',
+    accent:input.pageStyle==='editorial'?'#e5b853':referenceDraft?.accent||'#12b886',imageUrl:'',
     sectionOrder:referenceDraft?.sectionOrder||['pain','benefits','mockups','includes','steps','faq'],
-    visualStyle:referenceDraft?.visualStyle||'dark',
+    visualStyle:input.pageStyle==='editorial'?'editorial':(referenceDraft?.visualStyle==='editorial'?'dark':referenceDraft?.visualStyle||'dark'),
     galleryTitle:'Veja como este material pode ser apresentado',
     gallery:[],
-    winnerReferenceId:reference?.id
+    winnerReferenceId:reference?.id,
+    proofTitle:'O que dizem nossos clientes',proofItems:[],
+    bonusTitle:'Bônus incluídos',bonusItems:[],
+    pricingTitle:'Escolha sua opção',guaranteeText:'',
+    secondPlanName:'',secondPlanPrice:'',secondPlanCheckout:'',secondPlanItems:[]
   };
   return NextResponse.json({
     draft,source:'IA gerou texto original usando referências informadas, sem visitar links',
