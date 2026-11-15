@@ -9,6 +9,11 @@ export type SalesPageDraft={
   faqTitle:string;faq:{question:string;answer:string}[];
   ctaText:string;finalTitle:string;finalBody:string;
   accent:string;imageUrl:string;
+  visualStyle?:'dark'|'light'|'warm';
+  sectionOrder?:('pain'|'benefits'|'mockups'|'includes'|'steps'|'faq')[];
+  galleryTitle?:string;
+  gallery?:{label:string;url:string}[];
+  winnerReferenceId?:string;
   referenceCopy?:string;differentiation?:string;actualContents?:string;
 };
 const safeText=(v:string)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;')
@@ -37,7 +42,9 @@ export function starterPage(product:Product):SalesPageDraft{
     ctaText:'Quero conhecer o material',
     finalTitle:'Conheça a proposta e decida com tranquilidade',
     finalBody:'Confira o conteúdo, as condições de compra e se esta solução atende ao que você procura.',
-    accent:'#12b886',imageUrl:''
+    accent:'#12b886',imageUrl:'',
+    visualStyle:'dark',sectionOrder:['pain','benefits','mockups','includes','steps','faq'],
+    galleryTitle:'Veja como o material pode ser apresentado',gallery:[]
   };
 }
 export function readSalesDraft(value:string):SalesPageDraft|null{
@@ -50,7 +57,14 @@ export function readSalesDraft(value:string):SalesPageDraft|null{
     if(keys.some(k=>typeof raw[k]!=='string'))return null;
     if(!Array.isArray(raw.benefits)||!Array.isArray(raw.includes)||!Array.isArray(raw.steps)||
       !Array.isArray(raw.faq))return null;
-    return raw as SalesPageDraft;
+    const validSectionKeys=['pain','benefits','mockups','includes','steps','faq'];
+    const sectionOrder=Array.isArray(raw.sectionOrder)?
+      raw.sectionOrder.filter((x:unknown)=>typeof x==='string'&&validSectionKeys.includes(x)):undefined;
+    return {...raw,sectionOrder:sectionOrder as SalesPageDraft['sectionOrder'],
+      visualStyle:['dark','light','warm'].includes(raw.visualStyle)?raw.visualStyle:'dark',
+      gallery:Array.isArray(raw.gallery)?raw.gallery.filter((v:unknown)=>!!v&&typeof v==='object'&&
+        typeof (v as {label?:unknown}).label==='string'&&typeof (v as {url?:unknown}).url==='string').slice(0,4):[],
+      galleryTitle:typeof raw.galleryTitle==='string'?raw.galleryTitle:'Veja o material por dentro'} as SalesPageDraft;
   }catch{return null;}
 }
 export function serializeSalesDraft(d:SalesPageDraft){
@@ -73,10 +87,24 @@ export function salesPageHtml(d:SalesPageDraft,options:{name:string;price:number
   const faq=d.faq.filter(q=>q.question&&q.answer).slice(0,6).map(q=>
     '<details><summary>'+esc(q.question)+'</summary><p>'+esc(q.answer)+'</p></details>').join('');
   const image=d.imageUrl.trim().toLowerCase().startsWith('https://')?url(d.imageUrl):'';
-  const heroImage=image?'<div class="visual"><img src="'+esc(image)+'" alt="'+esc(d.brand)+'" loading="lazy"></div>':
-    '<div class="visual placeholder" aria-hidden="true"><span>MATERIAL DIGITAL</span><strong>'+esc(d.brand)+'</strong><small>Apresentação visual do produto</small></div>';
+  const heroImage=image?'<div class="visual"><img src="'+esc(image)+'" alt="Imagem ilustrativa do '+esc(d.brand)+'" loading="eager"></div>':
+    '<div class="visual product-mock" aria-label="Mockup conceitual do produto">'+
+      '<div class="book-cover"><small>KIT DIGITAL</small><strong>'+esc(d.brand)+'</strong><span>Mockup ilustrativo · não é uma foto da entrega</span></div>'+
+      '<div class="mock-sheet"><span>PRÉVIA ILUSTRATIVA</span><b>'+esc(d.includes[0]||'Conteúdo digital')+'</b></div></div>';
+  const galleryItems=(d.gallery||[]).filter(g=>g&&typeof g.label==='string'&&typeof g.url==='string').slice(0,4);
+  const previewCards=(galleryItems.length?galleryItems.slice(0,3):d.includes.slice(0,3).map(t=>({label:t,url:''})))
+    .map((item,i)=>{
+      const src=item.url.startsWith('https://')?url(item.url):'';
+      const visual=src?'<img src="'+esc(src)+'" alt="'+esc(item.label)+'" loading="lazy">':
+        '<div class="preview-placeholder"><span>MOCKUP '+String(i+1).padStart(2,'0')+'</span><b>'+esc(item.label)+'</b><small>Representação ilustrativa</small></div>';
+      return '<figure class="preview-card">'+visual+'<figcaption>'+esc(item.label)+'</figcaption></figure>';
+    }).join('');
+  const mockupSection='<section class="block mockups"><div class="wrap"><span class="eyebrow">APRESENTAÇÃO VISUAL</span>'+
+    '<h2 class="section-title">'+esc(d.galleryTitle||'Veja como seu material pode ser apresentado')+'</h2>'+
+    '<p class="section-lead">Prévia visual ilustrativa. Confira os arquivos reais antes de publicar.</p>'+
+    '<div class="gallery-grid">'+previewCards+'</div></div></section>';
   const css=[
-    ':root{--accent:'+accent+';--bg:#09131b;--surface:#142330;--text:#f5fafc;--muted:#bed0db;--stroke:#2a4050}',
+    ':root{--accent:'+accent+';--bg:'+(d.visualStyle==='light'?'#f5f8fc':d.visualStyle==='warm'?'#251b1e':'#09131b')+';--surface:'+(d.visualStyle==='light'?'#ffffff':d.visualStyle==='warm'?'#36252a':'#142330')+';--text:'+(d.visualStyle==='light'?'#172431':'#f5fafc')+';--muted:'+(d.visualStyle==='light'?'#475b69':'#bed0db')+';--stroke:'+(d.visualStyle==='light'?'#d9e2e9':'#2a4050')+'}',
     '*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}',
     'a{color:inherit;text-decoration:none}p{line-height:1.65}h1,h2,h3,p{overflow-wrap:anywhere}h1,h2,h3{letter-spacing:-.035em;line-height:1.15}',
     '.wrap{width:min(100% - 36px,1040px);margin-inline:auto}header{padding:17px 0;border-bottom:1px solid var(--stroke)}',
@@ -91,6 +119,14 @@ export function salesPageHtml(d:SalesPageDraft,options:{name:string;price:number
     '.cta.disabled{background:#344e50;color:#dde7e9;box-shadow:none}.hint{font-size:11px;color:var(--muted);margin-top:11px}',
     '.visual{aspect-ratio:1.2;border:1px solid #29525b;border-radius:22px;overflow:hidden;background:linear-gradient(140deg,#184a4e,#23334b);display:grid;place-items:center;padding:24px;box-shadow:0 24px 55px #0006}',
     '.visual img{width:100%;height:100%;object-fit:contain}.placeholder{align-content:center;text-align:center;gap:13px}',
+    '.product-mock{grid-template-columns:1fr 0.68fr;gap:0;align-items:center;min-height:270px;isolation:isolate}',
+    '.book-cover{transform:perspective(750px) rotateY(-15deg) rotateZ(-4deg);border-radius:6px 16px 16px 6px;border-left:12px solid #103334;box-shadow:16px 18px 23px #0007;background:linear-gradient(155deg,#147d77,#23475d);padding:29px 17px;min-height:230px;display:flex;flex-direction:column;justify-content:space-around;gap:13px;color:#fff}',
+    '.book-cover strong{font-size:clamp(15px,3.8vw,25px);line-height:1.15}.book-cover small,.mock-sheet span{font-size:10px;letter-spacing:.14em}.book-cover span{font-size:9px;opacity:.8}',
+    '.mock-sheet{background:#f9fafb;color:#20323b;min-height:176px;display:flex;flex-direction:column;gap:16px;justify-content:center;padding:13px;border:1px solid #bccbd1;border-radius:8px;box-shadow:8px 12px 18px #0006;transform:rotate(7deg);word-break:break-word;font-size:12px}',
+    '.gallery-grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:24px}.preview-card{margin:0;border:1px solid var(--stroke);border-radius:16px;overflow:hidden;background:var(--surface)}',
+    '.preview-card img{width:100%;aspect-ratio:4/3;object-fit:contain;display:block;background:#eef3f6}.preview-card figcaption{padding:15px;font-size:13px;font-weight:700;color:var(--text)}',
+    '.preview-placeholder{display:flex;flex-direction:column;justify-content:space-between;background:linear-gradient(145deg,#267b75,#243a52);color:#fff;min-height:225px;padding:20px;gap:16px}',
+    '.preview-placeholder span{font-size:10px;letter-spacing:.12em;opacity:.8}.preview-placeholder b{font-size:clamp(18px,4vw,26px)}.preview-placeholder small{font-size:10px;opacity:.8}',
     '.placeholder span{font-size:11px;letter-spacing:.14em;color:#b4d6d5}.placeholder strong{font-size:clamp(22px,5vw,32px);line-height:1.18}.placeholder small{font-size:12px;color:#b9d5da}',
     '.block{padding:47px 0}.block:nth-of-type(even){background:#0d1b25}.section-title{font-size:clamp(25px,6vw,36px);max-width:650px;margin:0 0 15px}',
     '.section-lead{font-size:15px;color:var(--muted);max-width:760px;margin:0 0 22px}',
@@ -106,9 +142,24 @@ export function salesPageHtml(d:SalesPageDraft,options:{name:string;price:number
     '.sticky{position:fixed;bottom:0;left:0;right:0;background:#09131bed;border-top:1px solid #33594c;padding:10px 16px calc(10px + env(safe-area-inset-bottom));backdrop-filter:blur(12px);z-index:9}',
     '.sticky .cta{max-width:none;width:100%;min-height:49px;font-size:14px}.sticky small{display:block;font-size:10px;text-align:center;margin-top:5px;color:#d8e7e5}',
     '@media(min-width:760px){.wrap{width:min(100% - 72px,1040px)}.hero{padding:84px 0}.hero-inner{grid-template-columns:1.2fr 1fr;align-items:center;gap:42px}',
-    '.visual{aspect-ratio:.95}.block{padding:70px 0}.benefits,.includes,.steps{grid-template-columns:repeat(2,minmax(0,1fr))}.sticky{display:none}main{padding-bottom:0}}',
+    '.visual{aspect-ratio:.95}.block{padding:70px 0}.gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.benefits,.includes,.steps{grid-template-columns:repeat(2,minmax(0,1fr))}.sticky{display:none}main{padding-bottom:0}}',
     '@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}'
   ].join('');
+  const blocks:Record<'pain'|'benefits'|'mockups'|'includes'|'steps'|'faq',string>={
+    pain:'<section class="block"><div class="wrap"><h2 class="section-title">'+esc(d.painTitle)+'</h2><p class="section-lead">'+esc(d.painBody)+'</p></div></section>',
+    benefits:'<section class="block"><div class="wrap"><h2 class="section-title">'+esc(d.benefitsTitle)+'</h2><ul class="benefits">'+benefits+'</ul></div></section>',
+    mockups:mockupSection,
+    includes:'<section class="block" id="oferta"><div class="wrap"><h2 class="section-title">'+esc(d.offerTitle)+'</h2>'+
+      '<ul class="includes">'+inclusions+'</ul><div class="pricebox"><span class="price-label">Investimento informado</span>'+
+      '<div class="price">'+esc(price)+'</div>'+cta+
+      '<p class="hint">Verifique valores, entrega, garantia e condições no checkout.</p></div></div></section>',
+    steps:'<section class="block"><div class="wrap"><h2 class="section-title">'+esc(d.stepsTitle)+'</h2><ul class="steps">'+steps+'</ul></div></section>',
+    faq:'<section class="block faq"><div class="wrap"><h2 class="section-title">'+esc(d.faqTitle)+'</h2>'+faq+'</div></section>'
+  };
+  const allowed=['pain','benefits','mockups','includes','steps','faq'] as const;
+  const requested=Array.isArray(d.sectionOrder)?d.sectionOrder:[];
+  const ordered=[...new Set([...requested.filter((x):x is typeof allowed[number]=>allowed.includes(x)),...allowed])];
+  const orderedSections=ordered.map(key=>blocks[key]).join('');
   return [
     '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">',
@@ -118,17 +169,7 @@ export function salesPageHtml(d:SalesPageDraft,options:{name:string;price:number
     '<main><section class="hero"><div class="wrap hero-inner"><div><span class="eyebrow">'+esc(d.eyebrow)+'</span>',
     '<h1>'+esc(d.headline)+'</h1><p class="lead">'+esc(d.subheadline)+'</p>',cta,
     '<p class="hint">Leia as informações da oferta antes de comprar.</p></div>',heroImage,'</div></section>',
-    '<section class="block"><div class="wrap"><h2 class="section-title">'+esc(d.painTitle)+'</h2>',
-    '<p class="section-lead">'+esc(d.painBody)+'</p></div></section>',
-    '<section class="block"><div class="wrap"><h2 class="section-title">'+esc(d.benefitsTitle)+'</h2>',
-    '<ul class="benefits">'+benefits+'</ul></div></section>',
-    '<section class="block" id="oferta"><div class="wrap"><h2 class="section-title">'+esc(d.offerTitle)+'</h2>',
-    '<ul class="includes">'+inclusions+'</ul><div class="pricebox"><span class="price-label">Investimento informado</span>',
-    '<div class="price">'+esc(price)+'</div>',cta,
-    '<p class="hint">Verifique valores, entrega, garantia e condições no checkout.</p></div></div></section>',
-    '<section class="block"><div class="wrap"><h2 class="section-title">'+esc(d.stepsTitle)+'</h2>',
-    '<ul class="steps">'+steps+'</ul></div></section>',
-    '<section class="block faq"><div class="wrap"><h2 class="section-title">'+esc(d.faqTitle)+'</h2>',faq,'</div></section>',
+    orderedSections,
     '<section class="block closing"><div class="wrap"><h2 class="section-title">'+esc(d.finalTitle)+'</h2>',
     '<p class="section-lead">'+esc(d.finalBody)+'</p>',cta,'</div></section></main>',
     '<footer><div class="wrap">'+esc(d.brand)+' · Conteúdo sujeito às condições apresentadas no checkout.</div></footer>',
