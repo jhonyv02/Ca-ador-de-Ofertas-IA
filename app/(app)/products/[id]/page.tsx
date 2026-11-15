@@ -11,10 +11,11 @@ import { AdInspector } from '@/components/ad-inspector';
 import { Creative } from '@/components/creative';
 import { PageHeading, Section, Modal, Empty, Load, StatusPill, ScoreRing, Feedback } from '@/components/ui';
 import { opportunityScore, brl, shortDate, adDays } from '@/lib/utils';
+import { chatOffers, metaSearchLinks } from '@/lib/chatgpt-offers';
 export default function ProductDetail(){
   const {id}=useParams<{id:string}>();const router=useRouter();const {products,ads,loading,supabase,refresh,latestAnalysis,testRuns}=useWorkspace();
   const [edit,setEdit]=useState(false);const [addAd,setAddAd]=useState(false);const [inspect,setInspect]=useState<Ad|null>(null);const [error,setError]=useState('');
-  const product=products.find(p=>p.id===id);const productAds=ads.filter(a=>a.product_id===id);const analysis=latestAnalysis(id);const score=product?opportunityScore(product,productAds,analysis):null;
+  const product=products.find(p=>p.id===id);const curated=product?chatOffers.find(o=>product.notes?.includes('#chatgpt:'+o.key)||product.notes?.includes('#pesquisa-meta-v2:'+o.key)||o.name===product.name):undefined;const productAds=ads.filter(a=>a.product_id===id);const analysis=latestAnalysis(id);const score=product?opportunityScore(product,productAds,analysis):null;
   if(loading)return <Load/>;
   if(!product)return <><PageHeading title="Produto não encontrado" description="Esse produto pode ter sido excluído ou você não tem acesso a ele."/><Link href="/products" className="btn">Voltar à lista</Link></>;
   const costsKnown=product.fulfillment_cost!==null&&product.extra_cost!==null;
@@ -37,6 +38,22 @@ export default function ProductDetail(){
       {product.notes&&<div className="mt-3"><div className="micro">ANOTAÇÕES</div><p className="mt-2" style={{whiteSpace:'pre-wrap',fontSize:12}}>{product.notes}</p></div>}
       {product.landing_url&&<div className="mt-3"><a className="btn wide" href={product.landing_url} target="_blank" rel="noopener noreferrer">Abrir página de vendas <ExternalLink size={15}/></a></div>}
     </Section>
+    {curated&&<Section title="Pesquisa na Meta e links da oferta" description="Os botões abaixo abrem PESQUISAS na Biblioteca da Meta; nenhum anúncio individual foi confirmado automaticamente.">
+      <div className="info-note"><strong>Status: anúncios ainda não verificados.</strong> Para comprovar atividade, encontre o ID do anúncio individual e salve o criativo na aba de anúncios.</div>
+      <div className="flex wrap gap-2 mt-3">
+        {curated.url&&<a className="btn btn-primary" href={curated.url} target="_blank" rel="noopener noreferrer">Página de vendas <ExternalLink size={14}/></a>}
+        {curated.marketplace&&<a className="btn" href={curated.marketplace} target="_blank" rel="noopener noreferrer">Oferta / Hotmart <ExternalLink size={14}/></a>}
+        {curated.checkout&&<a className="btn" href={curated.checkout} target="_blank" rel="noopener noreferrer">Checkout <ExternalLink size={14}/></a>}
+      </div>
+      <div className="mt-3"><div className="micro">TRÊS PESQUISAS PRONTAS NA BIBLIOTECA DA META</div>
+        <div className="flex wrap gap-2 mt-2">{metaSearchLinks(curated).map(link=><a key={link.url} className="btn" target="_blank" rel="noopener noreferrer" href={link.url}>Meta: {link.label} <ExternalLink size={14}/></a>)}</div>
+      </div>
+      <div className="mt-3" style={{fontSize:12}}>
+        <p><strong>Vendedor/marca:</strong> {curated.advertiser||'Não identificado'}</p>
+        <p><strong>Prioridade editorial:</strong> {curated.priority} (não indica vendas comprovadas)</p>
+        <p><strong>Risco a checar:</strong> {curated.risk||'Validar mercado, produto e CPA'}</p>
+      </div>
+    </Section>}
     <Section title="Evolução de testes" description="Resultados reais preenchidos por você.">{testRuns.filter(t=>t.product_id===id).length===0?<p className="muted" style={{fontSize:12}}>Nenhum teste registrado. Use o simulador para registrar orçamento e resultados.</p>:testRuns.filter(t=>t.product_id===id).map(t=><div className="watchlist-row" key={t.id}><span>{shortDate(t.start_date)} · {t.sales} vendas</span><strong>{brl(t.revenue-t.spend,product.currency)}*</strong></div>)}<Link href={`/simulator?product=${id}`} className="btn wide mt-2"><BarChart3 size={16}/> Simular e registrar testes</Link><p className="micro mt-2">* Receita menos gasto com anúncio, sem descontar outros custos.</p></Section>
   </div></div>
   {edit&&<Modal title="Editar produto" onClose={()=>setEdit(false)}><ProductForm product={product} onCancel={()=>setEdit(false)} onComplete={()=>setEdit(false)}/></Modal>}
