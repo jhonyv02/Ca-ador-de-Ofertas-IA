@@ -9,6 +9,7 @@ export type SalesPageDraft={
   faqTitle:string;faq:{question:string;answer:string}[];
   ctaText:string;finalTitle:string;finalBody:string;
   accent:string;imageUrl:string;
+  referenceCopy?:string;differentiation?:string;actualContents?:string;
 };
 const safeText=(v:string)=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;')
   .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
