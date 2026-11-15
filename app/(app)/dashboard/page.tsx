@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import {useMemo,useState} from 'react';
-import {ArrowRight,ExternalLink,Plus,LibraryBig,Megaphone,Target,Search} from 'lucide-react';
+import {ArrowRight,ExternalLink,Plus,LibraryBig,Megaphone,Target,Search,Globe2} from 'lucide-react';
 import {useWorkspace} from '@/components/workspace';
 import {useLocale} from '@/components/locale';
 import {AdForm,ProductForm} from '@/components/forms';
