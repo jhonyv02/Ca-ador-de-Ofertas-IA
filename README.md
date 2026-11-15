@@ -85,6 +85,25 @@ NEXT_PUBLIC_SITE_URL=https://seu-dominio.com
 
 O projeto usa **Next.js 16 e precisa de execução Node.js**. Hospedagem que só serve HTML estático não roda `/api/analyze` nem a autenticação server-side. Use VPS com Node.js, um produto Hostinger que suporte Node, ou Vercel. Na VPS, inicie `npm run build` e depois `npm run start` usando gerenciador de processos, HTTPS e proxy reverso. O banco continua no Supabase.
 
+
+## Teste da Semana — análise crítica para tráfego direto
+
+Acesse **/semana** após fazer login. O menu principal e o dashboard possuem um atalho.
+
+- Faça a importação das ofertas em **/products**; ofertas importadas são referências de pesquisa, **não produtos próprios licenciados**.
+- Informe o orçamento TOTAL da semana (R$ 120 apenas como valor inicial ajustável).
+- Clique **Análise crítica com IA**. A API \`POST /api/weekly-direct\` coleta produtos, anúncios e testes exclusivamente do usuário autenticado e avalia **uma única oferta** por vez, com diagnóstico, riscos, comparação e plano de 7 dias.
+- Não existe venda/ROAS presumido. A IA **não visita URLs**: só usa dados cadastrados. Um anúncio ativo no Meta não comprova lucro.
+- A prontidão exige: preço positivo, BR/BRL para teste no Brasil, página cadastrada, custos do produto e taxas preenchidos, margem de contribuição positiva e **seis confirmações manuais de verificação real** (direitos, página própria, checkout, criativo/copy, Purchase e entrega/suporte).
+- O CPA máximo de equilíbrio é preço menos custos informados; o teto conservador mostrado é 70% dessa contribuição como referência de planejamento, **não uma previsão de performance**.
+- Se o checklist estiver incompleto, a IA só pode indicar a **melhor ideia para preparar**, nunca autorização para gastar em anúncios.
+- Os pareceres mais recentes ficam no armazenamento local do navegador por até 48 horas, isolados por ID do usuário; não são uma tabela nova no Supabase. Alterar produtos, anúncios, resultados ou orçamento invalida o parecer salvo.
+- Configurar \`OPENAI_API_KEY\` no servidor (e opcionalmente \`OPENAI_MODEL\`). Se a chave não estiver disponível ou a API estiver sem saldo, o painel ainda mostra o checklist e as evidências, mas **não cria falsa análise por IA**.
+- Proteção básica contra abuso: três chamadas por 15 minutos por usuário **por instância** de servidor; para uso comercial com múltiplos nós implementar rate limit persistente.
+- Não foi necessário migrar o banco existente: os marcadores do checklist são armazenados em \`products.notes\`; mantenha os registros e os limites de caracteres. A edição do cadastro pode ser usada para revisar tudo.
+
+Para validar antes de promover para produção: rode \`npm run lint\`, \`npm run test:meta\`, \`npm run build\`, verifique login e RLS, simule produto com custo não informado, valide erro 503 sem chave de IA e teste a rota com chave real em ambiente controlado. **Commit no GitHub não garante publicação na Hostinger**.
+
 ## Como funciona a IA
 
 A API `POST /api/analyze` exige sessão do Supabase, só consulta registros do dono e valida IDs. A IA recebe o produto, até 16 anúncios detalhados, até 30 verificações e um print do anúncio quando existir. Retorna JSON estruturado, salvo em `analyses`. Score vai de 0 a 100, com critérios 20+20+20+15+15+10. O endpoint faz limite simples de até 20 análises salvas por usuário em 24h (**não é limitador resistente a concorrência**, implemente controle transacional ou gateway antes de vender em escala).
