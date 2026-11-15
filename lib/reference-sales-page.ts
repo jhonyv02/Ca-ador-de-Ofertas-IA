@@ -103,6 +103,16 @@ function bonus(d:SalesPageDraft,visuals:VisualAsset[]){
       '<span class="bonus-tag">INCLUÍDO</span><h3>'+esc(x.title)+'</h3><p>'+esc(x.description)+'</p></article>').join('')+
     '</div></div></section>';
 }
+function valueStack(d:SalesPageDraft){
+  const items=d.includes.filter(Boolean).slice(0,8);
+  if(!items.length)return '';
+  return '<section class="section value"><div class="wrap center">'+tag('TUDO EM UM SÓ LUGAR')+
+    '<h2>Veja o que está incluído no seu pacote</h2>'+
+    '<p class="sub">Lista de conteúdos informados pelo responsável pela oferta. Não presume preço separado nem economia fictícia.</p>'+
+    '<div class="value-sheet"><table><thead><tr><th>ITEM</th><th>NO PACOTE</th></tr></thead><tbody>'+
+    items.map(x=>'<tr><td>'+esc(x)+'</td><td>✓ Incluído</td></tr>').join('')+
+    '</tbody></table></div></div></section>';
+}
 function pricing(d:SalesPageDraft,o:RenderOpts){
   const first=d.includes.filter(Boolean).slice(0,8);
   const second=(d.secondPlanItems||[]).filter(Boolean).slice(0,8);
@@ -151,7 +161,7 @@ const css=[
  '.included{background:#fff!important}.included-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:27px auto}.included-card{padding:24px 13px;border:1px solid #e8e1d7;border-radius:11px;box-shadow:0 6px 16px #0000000b;background:#fff}.included-card span{font-size:25px;color:var(--accent)}.included-card h3{font-size:13px;margin:8px 0}',
  '.stories{background:#fbf7ef!important}.story{display:grid;gap:25px;align-items:center;margin:8px auto 50px}.story img{max-height:410px;margin:auto;border-radius:12px}.story h2{margin:10px 0}.checks{list-style:none;padding:0}.checks li{margin:9px 0}.checks li:before{content:"✓";color:var(--accent);margin-right:9px;font-weight:900}',
  '.bonus{background:var(--primary)!important;color:#fff}.bonus h2{color:#fff}.bonus .tag{background:#ffffff26;color:#fff}.bonus-hero{max-width:340px;margin:0 auto 24px}.bonus-hero img{max-height:240px;border-radius:12px;margin:auto}.bonus-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.bonus-card{text-align:left;border-radius:11px;padding:14px;background:#ffffff1a;border:1px solid #ffffff40}.bonus-card img{height:120px;width:100%;object-fit:contain}.bonus-visual{height:110px;display:grid;place-items:center;font-size:34px;background:#0002;border-radius:8px}.bonus-tag{display:inline-block;border-radius:20px;background:#ffe0a0;color:#28354a;padding:3px 10px;font-size:10px;font-weight:850;margin-top:10px}.bonus-card p{font-size:12px}',
- '.pricing{background:#faf6ef!important}.plans{max-width:830px;margin:26px auto;display:grid;gap:15px}.plan{text-align:left;border:1px solid #e8e0d3;border-radius:14px;background:#fff;padding:24px 21px;display:flex;flex-direction:column}.plan.featured{border:2px solid var(--accent);background:#f0faf6}.theme-agenda .plan.featured{background:#fffaef}.plan span{font-size:10px;font-weight:850;letter-spacing:.1em}.plan h3{font-size:22px}.plan ul{list-style:none;padding:0;flex:1}.plan li{padding:5px 0;font-size:13px}.plan li:before{content:"✓";color:var(--primary);font-weight:900;margin-right:7px}.price{font-size:clamp(22px,5vw,33px);font-weight:900;color:var(--primary);margin:15px 0}.plan .btn{width:100%}',
+ '.value{background:#fff!important}.value-sheet{max-width:740px;margin:24px auto;border-radius:13px;overflow:hidden;box-shadow:0 8px 25px #00000014;border:1px solid #e8e2d7}.value table{width:100%;border-collapse:collapse;text-align:left;background:#fff}.value th{background:var(--primary);color:#fff;font-size:11px;padding:13px 16px}.value td{padding:12px 16px;border-bottom:1px solid #eee8de;font-size:13px}.value td:last-child{color:#27804c;font-weight:800;white-space:nowrap}.pricing{background:#faf6ef!important}.plans{max-width:830px;margin:26px auto;display:grid;gap:15px}.plan{text-align:left;border:1px solid #e8e0d3;border-radius:14px;background:#fff;padding:24px 21px;display:flex;flex-direction:column}.plan.featured{border:2px solid var(--accent);background:#f0faf6}.theme-agenda .plan.featured{background:#fffaef}.plan span{font-size:10px;font-weight:850;letter-spacing:.1em}.plan h3{font-size:22px}.plan ul{list-style:none;padding:0;flex:1}.plan li{padding:5px 0;font-size:13px}.plan li:before{content:"✓";color:var(--primary);font-weight:900;margin-right:7px}.price{font-size:clamp(22px,5vw,33px);font-weight:900;color:var(--primary);margin:15px 0}.plan .btn{width:100%}',
  '.proof{background:#fff!important}.quote{margin:0;text-align:left;border:1px solid #e9e0d4;border-radius:10px;padding:22px;background:#fff}.quote-icon{font-size:37px;color:var(--accent)}.quote p{font-size:13px}.quote footer{font-size:12px;font-weight:850;color:var(--primary)}',
  '.guarantee{background:#fff!important}.guarantee-box{max-width:800px;margin:auto;padding:24px;display:flex;gap:22px;align-items:center;border:1px solid #edd8ac;border-radius:13px;background:#fff9e9}.shield{flex:none;border-radius:50%;background:#e1f3e4;color:#28914f;width:79px;height:79px;display:grid;place-items:center;font-size:35px}',
  '.faq{background:#f7f1e9!important}.faq-list{margin:24px auto;text-align:left}.faq-list details{background:#fff;border-radius:9px;margin-bottom:9px;padding:13px 16px}.faq-list summary{display:flex;justify-content:space-between;gap:13px;cursor:pointer;font-size:13px;font-weight:800}.faq-list p{font-size:13px;color:var(--muted)}',
@@ -184,10 +194,10 @@ export function referenceSalesPageHtml(d:SalesPageDraft,o:RenderOpts,theme:Refer
     '<h2>'+esc(d.finalTitle)+'</h2><p>'+esc(d.finalBody)+'</p>'+gotoOffer(d)+'</div></section>';
   const social=proof(d),problem=pain(d),preview=gallery(d,visuals,theme),steps=how(d,visuals),
     features=included(d),stories=splitVisuals(d,visuals),bonuses=bonus(d,visuals),
-    plans=pricing(d,o),safe=guarantee(d),questions=faq(d);
+    plans=pricing(d,o),value=valueStack(d),safe=guarantee(d),questions=faq(d);
   const order=theme==='clinic'?
-    [preview,steps,problem,bridge,social,features,stories,bonuses,plans,safe,questions]:
-    [social,problem,preview,steps,features,stories,bonuses,plans,safe,questions];
+    [preview,steps,problem,bridge,social,features,stories,bonuses,value,plans,safe,questions]:
+    [social,problem,preview,steps,features,stories,bonuses,value,plans,safe,questions];
   const ribbon=d.topRibbon?.trim()?'<div class="ribbon">'+esc(d.topRibbon)+'</div>':'';
   return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'+
     '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'+
