@@ -1,0 +1,22 @@
+services:
+  cacador-browser:
+    build: .
+    init: true
+    restart: unless-stopped
+    user: pwuser
+    env_file: .env
+    environment:
+      PORT: "8765"
+    # Exposto apenas no localhost da VPS. Não abrir a porta publicamente.
+    ports:
+      - "127.0.0.1:8765:8765"
+    shm_size: "256mb"
+    mem_limit: "1000m"
+    cpus: 1.0
+    pids_limit: 160
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,size=256m
