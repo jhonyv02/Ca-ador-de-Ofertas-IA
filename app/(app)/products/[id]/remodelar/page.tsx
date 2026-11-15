@@ -13,7 +13,7 @@ import {readSalesDraft,salesPageHtml,serializeSalesDraft,starterPage,
 type Tone='direta'|'profissional'|'acolhedora';
 const lines=(values:string[],limit:number)=>values.slice(0,limit).join('\n');
 const splitLines=(value:string,limit:number)=>value.split(/\r?\n/).slice(0,limit);
-function EditField({label,value,onChange,large=false,placeholder='',maxLength=400}:{
+function EditField({label,value,onChange,large=false,placeholder='',maxLength=large?1000:400}:{
   label:string;value:string;onChange:(value:string)=>void;large?:boolean;placeholder?:string;maxLength?:number
 }){
   return <label className="field" style={{marginBottom:14}}>{label}
@@ -116,7 +116,7 @@ export default function RemodelPage(){
     if(!p||!draft)return;
     setSaving(true);setError('');setSuccess('');
     try{
-      if(checkout.trim()&&!safeHttpUrl(checkout))throw new Error('O link de checkout deve iniciar com https:// ou http://.');
+      if(checkout.trim()&&!safeHttpUrl(checkout).startsWith('https://'))throw new Error('Para vender com segurança, use um checkout com HTTPS.');
       const value=serializeSalesDraft({...draft,
         referenceCopy:referenceCopy.slice(0,3500),
         differentiation:differentiation.slice(0,1800),
