@@ -88,6 +88,7 @@ export async function POST(req:Request){
     'Seu trabalho é criar uma página de vendas NOVA, autoral e original para um NOVO produto, a partir de uma análise dos argumentos e dores de concorrentes.',
     'Não reescreva frases da concorrência por sinônimos. Extraia apenas ideias, dúvidas do público, objeções e diferenciais gerais e crie sua própria arquitetura de persuasão.',
     'Não copie slogans reconhecíveis, parágrafos, títulos distintivos, nomes de marca, imagens, depoimentos ou elementos criativos de concorrentes.',
+    'Crie uma NOVA marca/nome para a oferta original. O campo product.name descreve a REFERÊNCIA, não deve ser tratado como a marca nova definitiva.',
     'O produto ORIGINAL do cliente pode não estar pronto. Os dados da oferta de referência são apenas referência, NÃO evidência de que já produzimos os arquivos.',
     'Liste em "includes" somente entregáveis que o usuário tenha confirmado no campo actual_product_contents_that_exist. Se estiver vazio, coloque itens claros de PLACEHOLDER como "Descreva aqui o conteúdo que será criado e entregue", sem inventar módulos, quantidades ou bônus.',
     'Não invente avaliações, números de estudantes, percentuais de resultado, certificações, benefícios clínicos, depoimentos, escassez, prazo, desconto, garantia ou prova social.',
