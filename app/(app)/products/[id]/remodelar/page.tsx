@@ -37,6 +37,7 @@ export default function RemodelPage(){
   const [checkout,setCheckout]=useState('');
   const [viewport,setViewport]=useState<'mobile'|'desktop'>('mobile');
   const [generating,setGenerating]=useState(false);
+  const [extracting,setExtracting]=useState(false);
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState('');
   const [success,setSuccess]=useState('');
@@ -89,6 +90,21 @@ export default function RemodelPage(){
     }catch(e){setError(e instanceof Error?e.message:'Erro ao gerar a página.');}
     finally{setGenerating(false);}
   }
+  async function extractReference(){
+    if(!p||!p.landing_url)return;
+    if(referenceCopy.trim()&&!confirm('Substituir o texto de referência atual pelo conteúdo encontrado no link?'))return;
+    setExtracting(true);setError('');setSuccess('');
+    try{
+      const res=await fetch('/api/extract-reference',{method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({productId:p.id})});
+      const result=await res.json();
+      if(!res.ok)throw new Error(result.error||'Não foi possível ler este site.');
+      setReferenceCopy(result.text);
+      setSuccess('Texto público extraído. Revise e use apenas como referência; a copy nova será original.');
+    }catch(e){setError(e instanceof Error?e.message:'Site bloqueou a leitura. Cole o texto manualmente.');}
+    finally{setExtracting(false);}
+  }
   function resetToStarter(){
     if(!p)return;
     if(draft&&!confirm('Substituir a copy atual pelo modelo inicial? O último rascunho salvo continuará no sistema até você salvar novamente.'))return;
@@ -131,6 +147,7 @@ export default function RemodelPage(){
     catch{setError('Seu navegador não permitiu copiar. Use o botão Baixar HTML.');}
   }
   if(loading)return <Load/>;
+  if(p&&!draft)return <Load/>;
   if(!p||!draft)return <>
     <PageHeading title="Oferta não encontrada" description="Volte para a lista e abra um produto cadastrado."/>
     <Link className="btn" href="/products">Voltar aos produtos</Link>
@@ -163,8 +180,14 @@ export default function RemodelPage(){
             Produto: {p.name} · {p.niche} · Preço cadastrado: {p.sale_price===null?'A confirmar':brl(p.sale_price,p.currency)}
           </p>
         </div>
-        {hasExternalReference&&<a className="btn btn-ghost" href={referenceUrl} target="_blank" rel="noopener noreferrer">
-          Abrir página de referência <ExternalLink size={15}/></a>}
+        {hasExternalReference&&<div className="flex gap-2 wrap">
+          <button className="btn btn-primary" onClick={()=>void extractReference()} disabled={extracting}>
+            {extracting?<LoaderCircle size={15} className="spin"/>:<Sparkles size={15}/>}
+            {extracting?'Lendo página...':'Ler copy do link'}
+          </button>
+          <a className="btn btn-ghost" href={referenceUrl} target="_blank" rel="noopener noreferrer">
+            Abrir referência <ExternalLink size={15}/></a>
+        </div>}
       </div>
       <div className="two-col mt-3">
         <div>
@@ -187,8 +210,7 @@ export default function RemodelPage(){
             </select>
           </label>
           <div className="info-note mt-2">
-            A IA considera as copies de anúncios já salvos no Caçador, além do texto que você colar.
-            Ela não consegue ler automaticamente o conteúdo de qualquer URL.
+            A IA considera as copies de anúncios já salvos e o texto de referência. O botão Ler copy consulta apenas o HTML público do link; páginas com bloqueio ou conteúdo carregado por JavaScript podem exigir colagem manual.
           </div>
           <button className="btn btn-primary wide mt-3" onClick={()=>void generate()} disabled={generating}>
             {generating?<LoaderCircle size={17} className="spin"/>:<Sparkles size={17}/>}
