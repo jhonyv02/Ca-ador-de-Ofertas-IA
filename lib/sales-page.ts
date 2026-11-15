@@ -20,6 +20,8 @@ export type SalesPageDraft={
   bonusTitle?:string;
   bonusItems?:{title:string;description:string;imageUrl:string}[];
   pricingTitle?:string;
+  ownOfferPrice?:string;
+  painPoints?:string[];
   guaranteeText?:string;
   secondPlanName?:string;
   secondPlanPrice?:string;
@@ -57,7 +59,7 @@ export function starterPage(product:Product):SalesPageDraft{
     visualStyle:'editorial',
     proofTitle:'O que dizem os clientes',proofItems:[],
     bonusTitle:'Bônus incluídos no pacote',bonusItems:[],
-    pricingTitle:'Escolha a sua opção',guaranteeText:'',
+    pricingTitle:'Escolha a sua opção',ownOfferPrice:'',painPoints:[],guaranteeText:'',
     secondPlanName:'',secondPlanPrice:'',secondPlanCheckout:'',secondPlanItems:[],
     sectionOrder:['pain','benefits','mockups','includes','steps','faq'],
     galleryTitle:'Veja como o material pode ser apresentado',gallery:[]
@@ -92,6 +94,8 @@ export function readSalesDraft(value:string):SalesPageDraft|null{
       proofTitle:typeof raw.proofTitle==='string'?raw.proofTitle:'O que dizem os clientes',
       bonusTitle:typeof raw.bonusTitle==='string'?raw.bonusTitle:'Bônus incluídos',
       pricingTitle:typeof raw.pricingTitle==='string'?raw.pricingTitle:'Escolha sua opção',
+      ownOfferPrice:typeof raw.ownOfferPrice==='string'?raw.ownOfferPrice:'',
+      painPoints:Array.isArray(raw.painPoints)?raw.painPoints.filter((x:unknown)=>typeof x==='string').slice(0,5):[],
       guaranteeText:typeof raw.guaranteeText==='string'?raw.guaranteeText:'',
       secondPlanName:typeof raw.secondPlanName==='string'?raw.secondPlanName:'',
       secondPlanPrice:typeof raw.secondPlanPrice==='string'?raw.secondPlanPrice:'',
