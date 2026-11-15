@@ -965,9 +965,9 @@ export const chatOffers:ChatOffer[] = [
 
 export function metaSearchLinks(o:ChatOffer) {
   const country=o.country==='Brasil'?'BR':'ALL';
-  const domain=(()=>{try{const u=new URL(o.url);return u.host.replace(/^www\\./,'');}catch{return '';}})();
+  const domain=(()=>{try{const u=new URL(o.url);return u.host.replace(/^www\./,'');}catch{return '';}})();
   const candidates=[
-    {label:'Vendedor / marca',term:o.advertiser?.replace(/\\s*\\(.*$/,'').replace(/^@/,'').trim()||''},
+    {label:'Vendedor / marca',term:o.advertiser?.replace(/\s*\(.*$/,'').replace(/^@/,'').trim()||''},
     {label:'Nome da oferta',term:o.metaTerms?.[0]||o.name},
     {label:domain?'Domínio da página':'Variação da oferta',term:domain||o.metaTerms?.[1]||o.name.replace(/[—–].*$/,'').trim()},
     {label:'Termo alternativo',term:o.metaTerms?.[1]||o.niche},
