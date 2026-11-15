@@ -41,6 +41,18 @@ export default function Dashboard() {
       <button className="btn btn-primary" onClick={()=>setNewAd(true)}>{t('newAd')} <ArrowRight size={15}/></button>
     </div>
   </section>
+  <section className="panel" style={{borderColor:'#377965',marginTop:0}}>
+    <div className="flex between center wrap gap-2">
+      <div><div className="eyebrow" style={{marginBottom:8}}>TRÁFEGO DIRETO · DECISÃO DA SEMANA</div>
+        <h2 style={{fontSize:19,marginBottom:7}}>Qual oferta merece a verba de teste?</h2>
+        <p className="muted" style={{fontSize:12,margin:0,maxWidth:690}}>
+          Compare o potencial real, revele o que falta para vender com tráfego direto e peça à IA uma análise crítica.
+          O sistema pode recomendar NÃO anunciar enquanto o checkout, margem ou direitos não estiverem confirmados.
+        </p>
+      </div>
+      <Link href="/semana" className="btn btn-primary">Analisar a semana <ArrowRight size={15}/></Link>
+    </div>
+  </section>
   {loading?<Load/>:<>
     <div className="stats-grid simplified-stats">
       <div className="stat"><div><div className="stat-label">{t('products')}</div><div className="stat-value">{products.length}</div></div><LibraryBig size={20}/></div>
