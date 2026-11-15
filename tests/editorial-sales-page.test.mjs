@@ -19,7 +19,7 @@ const opt={name:'Kit Organizado',price:29.9,currency:'BRL',
   checkout:'https://checkout.example.com/pagamento'};
 test('produz estrutura editorial responsiva com CTA e seções navy, creme e dourado',()=>{
   const html=editorialSalesPageHtml(demo,opt);
-  for(const piece of ['class="hero"','class="mock-scene"','cream-section','included-grid',
+  for(const piece of ['class="hero"','class="hero-image mock-scene"','cream-section','included-grid',
     'class="pricing-section"','class="faq-section"','class="bottom-cta"','gold-button',
     'width=device-width','R$','29,90','https://checkout.example.com/pagamento'])
     assert.ok(html.includes(piece),piece);
