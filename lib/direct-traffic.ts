@@ -26,6 +26,7 @@ export function directFlags(p:Product):Record<DirectCheck,boolean>{
 }
 export function notesWithFlag(notes:string,key:DirectCheck,enabled:boolean){
   const flag=tags[key];
+  if(enabled&&notes.split(/\r?\n/).some(s=>s.trim()===flag))return notes.trim();
   const lines=notes.split(/\r?\n/).filter(s=>s.trim()!==flag);
   if(enabled)lines.push(flag);
   return lines.join('\n').trim();
