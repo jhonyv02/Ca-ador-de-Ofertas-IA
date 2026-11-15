@@ -17,7 +17,7 @@ type WeeklyReport={
   next_actions:string[];creative_angle:string;seven_day_plan:string[];stop_rules:string[];
   comparison:Comparison[];ready:boolean;cpa_break_even:number|null;cpa_conservative:number|null;
 };
-type Saved={signature:string;report:WeeklyReport;generated_at:string;model:string;budget_total_brl:number};
+type Saved={signature:string;report:WeeklyReport;generated_at:string;model:string;daily_budget_brl:number;budget_total_brl:number};
 const labels={
   launch_one:'Uma oferta liberada para teste controlado',
   prepare_one:'Melhor hipótese para preparar — não anunciar ainda',
@@ -26,8 +26,9 @@ const labels={
 const confidenceLabels={low:'baixa',medium:'média',high:'alta'};
 export default function WeeklyDirect(){
   const {products,ads,testRuns,supabase,refresh,loading,error}=useWorkspace();
-  const [budgetText,setBudgetText]=useState('120');
-  const budget=Number(budgetText);
+  const [budgetText,setBudgetText]=useState('35');
+  const dailyBudget=Number(budgetText);
+  const weeklyBudget=dailyBudget*7;
   const [busy,setBusy]=useState(false);
   const [report,setReport]=useState<Saved|null>(null);
   const [failure,setFailure]=useState('');
@@ -47,10 +48,10 @@ export default function WeeklyDirect(){
   },[supabase]);
   useEffect(()=>{if(ranked.length&&!selectedId)setSelectedId(ranked[0].product.id);},[ranked,selectedId]);
   const signature=useMemo(()=>[
-    String(budget),...products.map(p=>p.id+':'+p.updated_at).sort(),
+    String(dailyBudget),...products.map(p=>p.id+':'+p.updated_at).sort(),
     ...ads.map(a=>a.id+':'+a.updated_at).sort(),
     ...testRuns.map(t=>t.id+':'+t.spend+':'+t.sales+':'+t.revenue).sort()
-  ].join('|'),[budget,products,ads,testRuns]);
+  ].join('|'),[dailyBudget,products,ads,testRuns]);
   const cacheKey='cacador:weekly-direct:'+userId;
   useEffect(()=>{
     if(!userId||loading)return;
@@ -68,16 +69,17 @@ export default function WeeklyDirect(){
     products.find(p=>p.id===report.report.selected_product_id):null;
   async function analyze(){
     setFailure('');
-    if(!Number.isFinite(budget)||budget<30||budget>30000){
-      setFailure('Informe orçamento total válido entre R$ 30 e R$ 30.000.');return;
+    if(!Number.isFinite(dailyBudget)||dailyBudget<5||dailyBudget>5000){
+      setFailure('Informe um orçamento diário entre R$ 5 e R$ 5.000.');return;
     }
     setBusy(true);
     try{
       const res=await fetch('/api/weekly-direct',{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({budget})});
+        body:JSON.stringify({dailyBudget})});
       const data=await res.json();
       if(!res.ok)throw new Error(data.error||'A IA não conseguiu analisar as ofertas.');
       const saved:Saved={report:data.report,generated_at:data.generated_at,
+        daily_budget_brl:data.daily_budget_brl,
         budget_total_brl:data.budget_total_brl,model:data.model,signature};
       setReport(saved);
       if(data.report.selected_product_id)setSelectedId(data.report.selected_product_id);
@@ -117,10 +119,13 @@ export default function WeeklyDirect(){
           </p>
         </div>
         <div style={{minWidth:180}}>
-          <label className="field" htmlFor="weekly-budget">Orçamento TOTAL da semana (R$)</label>
-          <input id="weekly-budget" className="input" type="number" min={30} max={30000} step={10}
+          <label className="field" htmlFor="weekly-budget">Orçamento diário (R$)</label>
+          <input id="weekly-budget" className="input" type="number" min={5} max={5000} step={1}
             value={budgetText} onChange={e=>setBudgetText(e.target.value)}/>
-          <p className="micro" style={{margin:'5px 0 0'}}>R$ 120 é apenas o valor inicial, ajustável.</p>
+          <p className="micro" style={{margin:'5px 0 0'}}>Valor inicial: R$ 35 por dia, ajustável.</p>
+          <p className="micro" style={{margin:'7px 0 0'}}>
+            Total previsto para 7 dias: <strong>{Number.isFinite(weeklyBudget)&&weeklyBudget>0?brl(weeklyBudget):'—'}</strong>
+          </p>
         </div>
       </div>
       <div className="flex between wrap center gap-2 mt-3">
@@ -179,7 +184,7 @@ export default function WeeklyDirect(){
         </div>
         <h3 style={{margin:'20px 0 10px'}}>O que fazer antes de investir</h3>
         <ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{report.report.next_actions.map((s,i)=><li key={i}>{s}</li>)}</ul>
-        <h3 style={{margin:'20px 0 10px'}}>Roteiro de 7 dias com orçamento total de {brl(report.budget_total_brl)}</h3>
+        <h3 style={{margin:'20px 0 10px'}}>Roteiro de 7 dias: {brl(report.daily_budget_brl)} por dia · {brl(report.budget_total_brl)} no total</h3>
         <div className="card-grid">{report.report.seven_day_plan.map((task,i)=><div className="product-card" key={i}>
           <div className="micro">DIA {i+1}</div><p style={{fontSize:12,margin:0}}>{task}</p>
         </div>)}</div>
