@@ -12,7 +12,7 @@ const demo={
   faqTitle:'Dúvidas frequentes',
   faq:[{question:'É digital?',answer:'Sim, arquivo digital.'}],
   ctaText:'Conheça o kit',finalTitle:'Organize seu aprendizado',
-  finalBody:'Veja se esta proposta serve para você.',accent:'#e5b853',imageUrl:'',
+  finalBody:'Veja se esta proposta serve para você.',accent:'#e5b853',imageUrl:'',ownOfferPrice:'R$ 29,90',
   visualStyle:'editorial',galleryTitle:'Veja as prévias',gallery:[]
 };
 const opt={name:'Kit Organizado',price:29.9,currency:'BRL',
