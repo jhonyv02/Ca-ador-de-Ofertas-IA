@@ -13,7 +13,7 @@ test('oferta pesquisada sem custos e conteúdo próprio NÃO fica liberada',()=>
   const gate=directReadiness(raw,[],[]);
   assert.equal(gate.ready,false);
   assert.equal(gate.breakEvenCpa,null);
-  assert.ok(gate.blockers.some(x=>x.includes('conteúdo próprio')));
+  assert.ok(gate.blockers.some(x=>x.includes('Produto próprio')));
   assert.ok(gate.blockers.some(x=>x.includes('Custos')));
 });
 test('checklist explícito e custos conhecidos desbloqueiam a análise de teste',()=>{
@@ -26,9 +26,9 @@ test('checklist explícito e custos conhecidos desbloqueiam a análise de teste'
   assert.equal(gate.cautiousCpa,28);
   assert.equal(directFlags(product).checkout,true);
   assert.equal(notesWithFlag(notes,'content',true),notes);
-  assert.equal(notesWithFlag(notes,'content',false).includes('#conteúdo próprio_confirmados'),false);
+  assert.equal(notesWithFlag(notes,'content',false).includes('#produto_autoral_finalizado'),false);
 });
-test('margem negativa bloqueia mesmo com quatro confirmações',()=>{
+test('margem negativa bloqueia mesmo com seis confirmações',()=>{
   let notes=raw.notes;
   for(const k of ['content','page','checkout','creative','tracking','delivery'])notes=notesWithFlag(notes,k,true);
   const gate=directReadiness({...raw,notes,fulfillment_cost:50,extra_cost:2},[],[]);
