@@ -7,6 +7,7 @@ import {useLocale} from '@/components/locale';
 import {AdForm,ProductForm} from '@/components/forms';
 import {Modal,PageHeading,Section,Empty,Load,ScoreRing,Feedback} from '@/components/ui';
 import {opportunityScore} from '@/lib/utils';
+import {ChatgptOfferImport} from '@/components/chatgpt-offer-import';
 
 export default function Dashboard() {
  const {t}=useLocale();
@@ -53,6 +54,7 @@ export default function Dashboard() {
       <Link href="/semana" className="btn btn-primary">Analisar a semana <ArrowRight size={15}/></Link>
     </div>
   </section>
+  <ChatgptOfferImport compact/>
   {loading?<Load/>:<>
     <div className="stats-grid simplified-stats">
       <div className="stat"><div><div className="stat-label">{t('products')}</div><div className="stat-value">{products.length}</div></div><LibraryBig size={20}/></div>
