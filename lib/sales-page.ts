@@ -18,12 +18,11 @@ const esc=(v:string)=>safeText(v);
 const url=(v:string)=>safeHttpUrl(v);
 
 export function starterPage(product:Product):SalesPageDraft{
-  const label=product.name.trim()||'Material digital';
   const audience=product.target_audience.trim()||'quem quer aprender com materiais organizados';
   const p=product.promise.trim()||'Um material digital com conteúdo prático e organizado.';
   return {
-    brand:label,eyebrow:'MATERIAL DIGITAL · CONHEÇA A PROPOSTA',
-    headline:label,subheadline:p,
+    brand:'Meu novo produto',eyebrow:'MATERIAL DIGITAL · CONHEÇA A PROPOSTA',
+    headline:p,subheadline:'Um material autoral em desenvolvimento para '+audience+'.',
     painTitle:'Você precisa de uma solução mais prática?',
     painBody:'Para '+audience+', encontrar recursos organizados pode ajudar a ganhar clareza e economizar tempo na preparação.',
     benefitsTitle:'Por que conhecer este material?',
