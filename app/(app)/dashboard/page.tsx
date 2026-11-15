@@ -43,6 +43,11 @@ export default function Dashboard() {
     </div>
   </section>
   <section className="panel" style={{borderColor:'#377965',marginTop:0}}>
+    <div className="flex between center wrap gap-2" style={{marginBottom:14}}>
+      <div><strong>Navegue pelas ofertas por dentro do Caçador</strong>
+        <p className="muted" style={{fontSize:12,marginTop:4}}>Abra páginas de vendas, capture prints e importe os dados sem IA paga.</p></div>
+      <Link href="/browser" className="btn btn-primary"><Globe2 size={16}/> Abrir Navegador <ArrowRight size={15}/></Link>
+    </div>
     <div className="flex between center wrap gap-2">
       <div><div className="eyebrow" style={{marginBottom:8}}>TRÁFEGO DIRETO · DECISÃO DA SEMANA</div>
         <h2 style={{fontSize:19,marginBottom:7}}>Qual oferta merece a verba de teste?</h2>
