@@ -4,7 +4,7 @@ import {chromium} from 'playwright';
 import {assertPublicUrl} from './security.mjs';
 
 const token=process.env.BROWSER_WORKER_TOKEN||'';
-if(token.length<32)throw Error('Configure BROWSER_WORKER_TOKEN com pelo menos 32 caracteres.');
+if(token.length<32||/COLOQUE|SUA_CHAVE|EXEMPLO|PLACEHOLDER/i.test(token))throw Error('Configure uma chave aleatória real em BROWSER_WORKER_TOKEN (mínimo de 32 caracteres).');
 const PORT=Number(process.env.PORT||8765);
 const sessions=new Map();
 const TTL=15*60_000;
