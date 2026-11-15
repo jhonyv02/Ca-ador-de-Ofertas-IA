@@ -1,7 +1,9 @@
 import {NextResponse} from 'next/server';
 import {z} from 'zod';
 import {serverClient} from '@/lib/supabase/server';
-import {PAGE_PREFIX, type SalesPageDraft} from '@/lib/sales-page';
+import {readSalesDraft, type SalesPageDraft} from '@/lib/sales-page';
+import {suggestedWinner} from '@/lib/page-winner';
+import type {TestRun} from '@/lib/types';
 import type {Ad,Product} from '@/lib/types';
 export const runtime='nodejs';
 
@@ -10,7 +12,9 @@ const requestSchema=z.object({
   competitorCopy:z.string().max(7000).default(''),
   differentiation:z.string().max(2500).default(''),
   actualContents:z.string().max(3500).default(''),
-  tone:z.enum(['direta','profissional','acolhedora']).default('direta')
+  tone:z.enum(['direta','profissional','acolhedora']).default('direta'),
+  championMode:z.enum(['auto','manual','none']).default('auto'),
+  championProductId:z.string().uuid().optional()
 }).strict();
 const field=(max:number)=>z.string().trim().min(1).max(max);
 const draftSchema=z.object({
@@ -70,6 +74,34 @@ export async function POST(req:Request){
   const ads=(adData||[]) as Ad[];
   const referenceData=ads.map(ad=>({hook:ad.hook.slice(0,400),copy:ad.ad_copy.slice(0,1200),
     cta:ad.cta.slice(0,160),platform:ad.platform}));
+  const {data:pageCandidates,error:pcError}=await supabase.from('products')
+    .select('*').eq('user_id',user.id).limit(250);
+  if(pcError)return NextResponse.json({error:'Falha ao consultar suas páginas de referência.'},{status:500});
+  const {data:runData,error:runError}=await supabase.from('test_runs')
+    .select('*').eq('user_id',user.id).limit(2000);
+  if(runError)return NextResponse.json({error:'Falha ao consultar resultados dos seus testes.'},{status:500});
+  const candidates=(pageCandidates||[]) as Product[];
+  const recordedRuns=(runData||[]) as TestRun[];
+  const suggested=suggestedWinner(candidates,recordedRuns);
+  let reference:Product|undefined;
+  if(input.championMode==='manual'){
+    if(!input.championProductId)return NextResponse.json({error:'Escolha a página que servirá como referência.'},{status:400});
+    reference=candidates.find(c=>c.id===input.championProductId);
+    if(!reference||!readSalesDraft(reference.landing_copy))
+      return NextResponse.json({error:'A referência escolhida não possui uma página editada e salva nesta conta.'},{status:400});
+  }else if(input.championMode==='auto'&&suggested){
+    reference=candidates.find(c=>c.id===suggested.productId);
+  }
+  const referenceDraft=reference?readSalesDraft(reference.landing_copy):null;
+  const metrics=reference?recordedRuns.filter(r=>r.product_id===reference!.id):[];
+  const championEvidence=reference?{
+    source:'Resultados registrados por produto, não conversão isolada da página',
+    clicks:metrics.reduce((n,r)=>n+r.clicks,0),
+    sales:metrics.reduce((n,r)=>n+r.sales,0),
+    spend:metrics.reduce((n,r)=>n+r.spend,0),
+    revenue:metrics.reduce((n,r)=>n+r.revenue,0),
+    qualified:reference.id===suggested?.productId
+  }:null;
   const context={
     product:{name:p.name,niche:p.niche,country:p.country,language:p.language,currency:p.currency,
       reference_price:p.sale_price,reference_promise:p.promise.slice(0,1000),
@@ -81,6 +113,15 @@ export async function POST(req:Request){
     original_product_differentiation:input.differentiation,
     actual_product_contents_that_exist:input.actualContents,
     tone:input.tone,
+    own_champion_page:referenceDraft?{
+      ordering:referenceDraft.sectionOrder||['pain','benefits','mockups','includes','steps','faq'],
+      visual_theme:referenceDraft.visualStyle||'dark',
+      accent:referenceDraft.accent,
+      sections_present:['hero','pain','benefits','visual_mockups','includes','steps','faq','closing'],
+      product_name:reference?.name,
+      aggregated_product_test_metrics:championEvidence,
+      limitation:'No attribution to exact landing page version. Never claim causal conversion from page design.'
+    }:null,
     source:'Reference material supplied by the account owner; not verified or licensed for reuse'
   };
   const instructions=[
@@ -92,6 +133,9 @@ export async function POST(req:Request){
     'O produto ORIGINAL do cliente pode não estar pronto. Os dados da oferta de referência são apenas referência, NÃO evidência de que já produzimos os arquivos.',
     'Liste em "includes" somente entregáveis que o usuário tenha confirmado no campo actual_product_contents_that_exist. Se estiver vazio, coloque itens claros de PLACEHOLDER como "Descreva aqui o conteúdo que será criado e entregue", sem inventar módulos, quantidades ou bônus.',
     'Não invente avaliações, números de estudantes, percentuais de resultado, certificações, benefícios clínicos, depoimentos, escassez, prazo, desconto, garantia ou prova social.',
+    'Se houver own_champion_page, acompanhe a ORDEM dos blocos e a hierarquia visual daquele rascunho na nova página; adapte o conteúdo ao NOVO produto, sem reproduzir copy, marca ou imagens do campeão.',
+    'Se não houver campeão qualificado por testes reais, não afirme que existe página vencedora. O layout padrão pode ser usado como hipótese.',
+    'Entregue copy breve que deixe espaço para mockups 3D automáticos e uma galeria de imagens, sem afirmar que fotografias ilustrativas são amostras autênticas.',
     'Não afirme que viu a página no URL. Não houve navegação externa: trate a URL apenas como referência.',
     'O objetivo é copy original de conversão: na dobra inicial use dor e resultado realista, clareza de oferta e CTA; frases curtas, seções escaneáveis, bullets práticos e FAQ realista.',
     'Se o nicho for saúde/psicologia, evite alegações de cura, tratamento garantido ou diagnóstico. Indique que a utilização clínica depende de profissional qualificado.',
@@ -125,9 +169,20 @@ export async function POST(req:Request){
   }catch{return NextResponse.json({error:'A IA não retornou o rascunho completo.'},{status:502});}
   const checked=draftSchema.safeParse(parsed);
   if(!checked.success)return NextResponse.json({error:'A IA retornou um formato incompleto. Tente gerar novamente.'},{status:502});
-  const draft:SalesPageDraft={...checked.data,accent:'#12b886',imageUrl:''};
+  const draft:SalesPageDraft={...checked.data,
+    accent:referenceDraft?.accent||'#12b886',imageUrl:'',
+    sectionOrder:referenceDraft?.sectionOrder||['pain','benefits','mockups','includes','steps','faq'],
+    visualStyle:referenceDraft?.visualStyle||'dark',
+    galleryTitle:'Veja como este material pode ser apresentado',
+    gallery:[],
+    winnerReferenceId:reference?.id
+  };
   return NextResponse.json({
     draft,source:'IA gerou texto original usando referências informadas, sem visitar links',
-    model
+    model,
+    champion:reference?{name:reference.name,id:reference.id,...championEvidence}:null,
+    championNotice:reference
+      ?'Estrutura inspirada em uma página própria; métricas registradas por produto não validam o layout isoladamente.'
+      :'Sem página campeã com dados suficientes: aplicada estrutura original padrão.'
   },{headers:{'Cache-Control':'no-store'}});
 }
