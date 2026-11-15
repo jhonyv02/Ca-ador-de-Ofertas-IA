@@ -183,7 +183,7 @@ export async function POST(req:Request){
     winnerReferenceId:reference?.id,
     proofTitle:'O que dizem nossos clientes',proofItems:[],
     bonusTitle:'Bônus incluídos',bonusItems:[],
-    pricingTitle:'Escolha sua opção',guaranteeText:'',
+    pricingTitle:'Escolha sua opção',ownOfferPrice:'',painPoints:[],guaranteeText:'',
     secondPlanName:'',secondPlanPrice:'',secondPlanCheckout:'',secondPlanItems:[]
   };
   return NextResponse.json({
