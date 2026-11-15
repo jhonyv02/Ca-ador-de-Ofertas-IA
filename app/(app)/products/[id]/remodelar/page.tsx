@@ -509,7 +509,7 @@ export default function RemodelPage(){
             placeholder="Informe somente a garantia que você realmente oferece e cumpre."/>
           <p className="micro">Não há bônus, depoimentos ou garantia inventados pela IA. Se os campos ficarem vazios, os blocos não aparecem na página exportada.</p>
         </div>
-      </details>
+      </details>}
       <details className="advanced-details">
           <summary>Editar perguntas frequentes (sem inventar garantias)</summary>
           <div style={{padding:16}}>
