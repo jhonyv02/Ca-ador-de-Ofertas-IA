@@ -20,9 +20,9 @@ const outputFormat={
     weak_points:{type:'array',items:{type:'string'}},
     next_actions:{type:'array',items:{type:'string'}},
     creative_angle:{type:'string'},
-    seven_day_plan:{type:'array',items:{type:'string'}},
+    seven_day_plan:{type:'array',minItems:7,maxItems:7,items:{type:'string'}},
     stop_rules:{type:'array',items:{type:'string'}},
-    comparison:{type:'array',items:{
+    comparison:{type:'array',maxItems:6,items:{
       type:'object',additionalProperties:false,
       required:['product_id','score','signal','criticism'],
       properties:{
@@ -86,13 +86,13 @@ export async function POST(req:Request){
       price:p.sale_price,costs:{fulfillment:p.fulfillment_cost,extra:p.extra_cost},
       landing_url:p.landing_url,checkout_url:p.checkout_url,
       promise:p.promise.slice(0,500),audience:p.target_audience.slice(0,280),
-      notes:p.notes.replace(/^#[^\n]+$/gm,'').slice(0,1500),
-      ad_evidence:adList.slice(0,10).map(a=>({
+      notes:p.notes.replace(/^#[^\n]+$/gm,'').slice(0,500),
+      ad_evidence:adList.slice(0,4).map(a=>({
         platform:a.platform,started_at:a.started_at,active_status:a.observed_active,
         evidence_source:a.status_source,check_result:a.link_check_result,
-        hook:a.hook.slice(0,180),ad_copy:a.ad_copy.slice(0,350)
+        hook:a.hook.slice(0,130),ad_copy:a.ad_copy.slice(0,220)
       })),
-      historical_tests:tests.slice(0,8).map(t=>({
+      historical_tests:tests.slice(0,4).map(t=>({
         date:t.start_date,spend:t.spend,clicks:t.clicks,leads:t.leads,
         sales:t.sales,revenue:t.revenue
       })),
@@ -100,7 +100,8 @@ export async function POST(req:Request){
         cpa_break_even:gate.breakEvenCpa,cpa_conservative:gate.cautiousCpa},
       research_source:(p.notes||'').includes('#chatgpt:')?'pesquisa_chatgpt':'cadastro_proprio'
     };
-  });
+  }).sort((a,b)=>Number(b.readiness.ready)-Number(a.readiness.ready)||
+    b.readiness.evidence_score-a.readiness.evidence_score).slice(0,35);
   const model=process.env.OPENAI_MODEL||'gpt-4.1-mini';
   const instructions=[
     'Você é um diretor de aquisição extremamente cético, especialista em tráfego DIRETO para checkout de produtos digitais no Brasil.',
@@ -126,7 +127,7 @@ export async function POST(req:Request){
   ].join(' ');
   const payload=JSON.stringify({date:new Date().toISOString().slice(0,10),
     channel:'Meta Ads > tráfego direto para landing/checkout',budget_total_brl:input.budget,
-    offers}).slice(0,44000);
+    offers});
   let response:Response;
   try{
     response=await fetch('https://api.openai.com/v1/responses',{
@@ -135,7 +136,7 @@ export async function POST(req:Request){
       body:JSON.stringify({model,store:false,instructions,
         input:[{role:'user',content:[{type:'input_text',text:payload}]}],
         text:{format:{type:'json_schema',name:'weekly_direct_decision',strict:true,schema:outputFormat}},
-        max_output_tokens:3200}),signal:AbortSignal.timeout(60000)});
+        max_output_tokens:4200}),signal:AbortSignal.timeout(60000)});
   }catch{return NextResponse.json({error:'A conexão com a IA demorou ou falhou. Tente novamente.'},{status:504});}
   if(!response.ok){
     console.error('Weekly IA status',response.status,(await response.text()).slice(0,220));
