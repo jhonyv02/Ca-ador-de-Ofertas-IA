@@ -673,7 +673,7 @@ export default function RemodelPage(){
       <div style={{background:'#080d18',border:'1px solid #30475e',borderRadius:15,
         padding:viewport==='mobile'?'18px 5px':'12px',overflowX:'auto',marginTop:18}}>
         <iframe title="Prévia da página original de vendas" srcDoc={html}
-          sandbox="allow-popups allow-popups-to-escape-sandbox"
+          sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
           style={{width:viewport==='mobile'?390:'100%',minWidth:viewport==='mobile'?320:700,
             maxWidth:'100%',height:760,background:'#fff',border:'1px solid #405267',
             borderRadius:viewport==='mobile'?24:8,display:'block',margin:'auto'}}/>
