@@ -38,7 +38,7 @@ export function editorialSalesPageHtml(d:SalesPageDraft,o:RenderOptions):string{
   const bonuses=(d.bonusItems||[]).filter(b=>b.title.trim()&&b.description.trim()).slice(0,6);
   const proofs=(d.proofItems||[]).filter(p=>p.quote.trim()&&p.author.trim()).slice(0,6);
   const gold=/^#[0-9a-f]{6}$/i.test(d.accent)?d.accent:'#e5b853';
-  const sellingPrice=money(o.price,o.currency);
+  const sellingPrice=d.ownOfferPrice?.trim()||'Preço próprio a definir';
   const heroVisual=hero?
     '<div class="hero-image">'+image(hero,'Imagem do produto '+d.brand)+'</div>':
     '<div class="hero-image mock-scene" aria-label="Mockup conceitual do produto">'+
@@ -53,7 +53,8 @@ export function editorialSalesPageHtml(d:SalesPageDraft,o:RenderOptions):string{
     includes.slice(0,3).map((t,i)=>'<article class="visual-card"><div class="paper-preview"><span>PARTE '+String(i+1).padStart(2,'0')+'</span>'+
       '<b>'+esc(t)+'</b><small>Mockup demonstrativo, não fotografia da entrega</small></div>'+
       '<div class="visual-caption">'+esc(t)+'</div></article>').join('');
-  const problemItems=benefits.slice(0,4).map((b,i)=>
+  const pains=(d.painPoints||[]).filter(Boolean).slice(0,4);
+  const problemItems=(pains.length?pains:[d.painBody]).map(b=>
     '<li><span class="problem-x">×</span><span>'+esc(b)+'</span></li>').join('');
   const includedCards=includes.slice(0,6).map((x,i)=>
     '<article class="included-card"><div class="included-icon">'+['▦','◈','✧','▤','✦','◇'][i]+'</div>'+
@@ -145,7 +146,7 @@ export function editorialSalesPageHtml(d:SalesPageDraft,o:RenderOptions):string{
     '.price-card ul{list-style:none;padding:0;min-height:80px;font-size:13px;color:#4a6473}.price-card li{padding:5px 0}.price{font-size:clamp(30px,6vw,39px);font-weight:900;color:#246749;margin:15px 0 18px}',
     '.guarantee{padding-top:38px;padding-bottom:60px}.guarantee-box{border:1px solid #efd9a3;background:#fffaf0;border-radius:14px;padding:27px;text-align:center;max-width:790px;margin:auto}',
     '.proof-carousel{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:20px 4px 28px}.proof-card{min-width:min(85%,315px);max-width:315px;flex:1;padding:23px;border-radius:9px;background:white;border:1px solid #e8e0d3;box-shadow:0 10px 22px #101f3212;scroll-snap-align:center;text-align:left}',
-    '.proof-card blockquote{padding:0;margin:15px 0;font-size:14px;color:var(--ink)}.proof-card strong{font-size:12px}.stars{color:#d9ab53;letter-spacing:2px}.faq-section{background:white;padding:73px 0}',
+    '.proof-card blockquote{padding:0;margin:15px 0;font-size:14px;color:var(--ink)}.proof-card strong{font-size:12px}.quote-mark{color:#d9ab53;font-size:29px;line-height:1}.faq-section{background:white;padding:73px 0}',
     '.faq-list{max-width:780px;margin:24px auto 0;text-align:left}.faq-list details{background:#faf7f0;border-radius:8px;margin:8px 0;padding:13px 17px}.faq-list summary{display:flex;justify-content:space-between;font-weight:750;font-size:13px;cursor:pointer;list-style:none;gap:15px}.faq-list summary::-webkit-details-marker{display:none}.faq-list p{font-size:13px;color:#53677c;padding-top:10px}',
     '.bottom-cta{padding:58px 0 67px;text-align:center;background:var(--navy);color:white}.bottom-cta p{max-width:610px;color:#cbd7e6;margin:0 auto 22px}',
     'footer{background:#050d1b;color:#98aac4;text-align:center;padding:27px 0;font-size:11px}.sticky{position:fixed;inset:auto 0 0 0;background:#0e1a30f2;padding:10px 14px calc(10px + env(safe-area-inset-bottom));z-index:20;border-top:1px solid #8a6b2c;backdrop-filter:blur(8px)}',
