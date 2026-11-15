@@ -26,6 +26,16 @@ SaaS de pesquisa e comparação de produtos para tráfego pago construído com N
 
 Abra `demonstracao.html` com duplo clique: funciona offline e salva seus testes no localStorage deste navegador. Os dados exibidos inicialmente são **fictícios**. Esta prévia não tem IA, login nem upload de mídia; os recursos de produção estão no projeto Next.js.
 
+## Radar de ofertas pesquisadas no ChatGPT (15/11/2026)
+
+- Catálogo inicial de **23 ofertas** em `lib/chatgpt-offers.ts`, com nicho, país/idioma, preço de referência (ou `null` quando não identificado), promessa, público e observações.
+- Na página **/products**, o componente `components/chatgpt-offer-import.tsx` compara o catálogo com os produtos do usuário autenticado e importa os ausentes automaticamente, sem atualizar ou apagar dados existentes. Botão manual permite verificar novas ofertas.
+- Deduplicação por marcador `#chatgpt:<chave>` nas notas, nome normalizado ou URL normalizada. Não depende de mudanças de esquema. Recomenda-se índice/chave de origem no banco para concorrência intensa ou multiusuário em escala.
+- Prioridades A/B/C são **hipóteses de pesquisa**, não prova de faturamento, de anúncios ativos ou de rentabilidade. As ofertas entram como `researching`; os anúncios só são criados com evidências reais.
+- O painel inclui roteiro de **7 dias** para verificação, testes e comparação no Simulador. Custos desconhecidos não pontuam como margem de 100% nem permitem estimativa de CPA máximo.
+- Para incluir ofertas descobertas em uma nova conversa, atualize `lib/chatgpt-offers.ts` pelo fluxo de desenvolvimento/GitHub. **O ChatGPT não envia automaticamente suas conversas ao banco**; o mecanismo integrado sincroniza o catálogo versionado em GitHub quando a pessoa abre o painel.
+- Após alterações no GitHub, confira o CI e o **redeploy na Hostinger** antes de considerar a versão publicada. Depois, entre na conta e confira a importação no banco do Caçador. O Supabase do OrçaJá não deve ser usado para isso.
+
 ## Atualização: importação por link da Meta
 
 1. Se você **ainda não criou o banco**, execute `supabase/schema.sql` atualizado.
