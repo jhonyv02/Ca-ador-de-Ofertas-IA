@@ -1,5 +1,5 @@
 import type {SalesPageDraft} from './sales-page';
-import {pageVisualAssets,safeImageUrl,type VisualAsset} from './sales-page-visuals';
+import {pageVisualAssets,safeImageUrl,type VisualAsset} from './sales-page-visuals.ts';
 
 type RenderOpts={name:string;price:number|null;currency:string;checkout:string};
 export type ReferenceTheme='clinic'|'agenda';
