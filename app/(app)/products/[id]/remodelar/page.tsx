@@ -524,13 +524,16 @@ export default function RemodelPage(){
           {(draft.proofItems||[]).map((item,i)=><div className="panel mt-2" key={i} style={{padding:12}}>
             <EditField label={'Depoimento '+(i+1)} large value={item.quote}
               onChange={v=>setDraft(prev=>prev?{...prev,proofItems:(prev.proofItems||[]).map((p,j)=>i===j?{...p,quote:v}:p)}:prev)}/>
+            <EditField label="URL HTTPS do print real do WhatsApp (opcional)" value={item.imageUrl||''}
+              onChange={v=>setDraft(prev=>prev?{...prev,proofItems:(prev.proofItems||[]).map((p,j)=>i===j?{...p,imageUrl:v}:p)}:prev)}
+              placeholder="https://.../print-autorizado.webp"/>
             <EditField label="Autor autorizado" value={item.author}
               onChange={v=>setDraft(prev=>prev?{...prev,proofItems:(prev.proofItems||[]).map((p,j)=>i===j?{...p,author:v}:p)}:prev)}/>
             <button className="btn btn-danger" onClick={()=>setDraft(prev=>prev?{...prev,proofItems:(prev.proofItems||[]).filter((_,j)=>j!==i)}:prev)}>
               <Trash2 size={14}/> Remover</button>
           </div>)}
           <button className="btn mt-2" disabled={(draft.proofItems||[]).length>=6}
-            onClick={()=>setDraft(prev=>prev?{...prev,proofItems:[...(prev.proofItems||[]),{quote:'',author:''}]}:prev)}>
+            onClick={()=>setDraft(prev=>prev?{...prev,proofItems:[...(prev.proofItems||[]),{quote:'',author:'',imageUrl:''}]}:prev)}>
             <Plus size={15}/> Adicionar depoimento verificado
           </button>
           <div style={{borderTop:'1px solid var(--border,#334155)',margin:'22px 0'}}/>
