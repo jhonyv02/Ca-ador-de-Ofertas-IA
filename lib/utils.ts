@@ -16,14 +16,16 @@ export type Score = { score: number; confidence: string; parts: { label: string;
 export function opportunityScore(product: Product, ads: Ad[], last?: Analysis): Score {
   if (last) return {score:last.score,confidence:`IA: ${last.confidence}`,parts:[]};
   const price = Number(product.sale_price||0);
+  // Custos desconhecidos não equivalem a custo zero.
+  const costsKnown = product.fulfillment_cost !== null && product.extra_cost !== null;
   const cost = Number(product.fulfillment_cost||0) + Number(product.extra_cost||0);
-  const margin = price > 0 ? (price-cost)/price : 0;
+  const margin = price > 0 && costsKnown ? (price-cost)/price : null;
   const days = Math.max(0,...ads.filter(a=>a.observed_active==='active').map(a => adDays(a)||0));
   const parts = [
     {label:'Anúncios documentados',points:Math.min(20,ads.length*4),max:20},
     {label:'Tempo observado',points:Math.min(20,Math.floor(days/3)),max:20},
     {label:'Oferta descrita',points:[product.promise,product.target_audience,product.landing_url].filter(Boolean).length*6 + (price>0?2:0),max:20},
-    {label:'Margem estimada',points: price>0 ? Math.max(0,Math.min(20,Math.round(margin*25))) : 0,max:20},
+    {label:'Margem estimada',points: margin!==null ? Math.max(0,Math.min(20,Math.round(margin*25))) : 0,max:20},
     {label:'Dados coletados',points:Math.min(20,[product.niche,product.notes,product.checkout_url, ...ads.slice(0,3).map(a=>a.hook||a.ad_copy)].filter(Boolean).length*4),max:20},
   ];
   const filled = [price>0,!!product.promise,!!product.target_audience,ads.length>0,!!product.landing_url,ads.some(a=>!!a.ad_copy)].filter(Boolean).length;
