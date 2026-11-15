@@ -10,6 +10,7 @@ import {brl,safeHttpUrl} from '@/lib/utils';
 import {pageWinnerCandidates,suggestedWinner} from '@/lib/page-winner';
 import {readSalesDraft,salesPageHtml,serializeSalesDraft,starterPage,
   type SalesPageDraft} from '@/lib/sales-page';
+import {AUTO_VISUAL_LABELS} from '@/lib/sales-page-visuals';
 
 type Tone='direta'|'profissional'|'acolhedora';
 const lines=(values:string[],limit:number)=>values.slice(0,limit).join('\n');
@@ -47,6 +48,7 @@ export default function RemodelPage(){
   const [championProductId,setChampionProductId]=useState('');
   const [autoImages,setAutoImages]=useState(false);
   const [imageBusy,setImageBusy]=useState(false);
+  const [imageProgress,setImageProgress]=useState(0);
   const [winnerNotice,setWinnerNotice]=useState('');
   const candidates=useMemo(()=>pageWinnerCandidates(products,testRuns),[products,testRuns]);
   const best=useMemo(()=>suggestedWinner(products,testRuns),[products,testRuns]);
@@ -79,12 +81,13 @@ export default function RemodelPage(){
       index===i?{...item,[key]:value}:item)}:prev);
     setSuccess('');
   }
-  async function createVisual(kind:'hero'|'preview',contents=actualContents,existing?:SalesPageDraft){
+  async function createVisual(kind:'hero'|'preview'|'gallery',contents=actualContents,existing?:SalesPageDraft,slot?:number){
     if(!p)return null;
     const res=await fetch('/api/sales-visual',{method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({productId:p.id,kind,contents:contents.slice(0,1800),
-        label:kind==='hero'?(existing?.brand||p.name):'Prévia ilustrativa do kit digital'})});
+      body:JSON.stringify({productId:p.id,kind,slot,contents:contents.slice(0,1800),
+        label:kind==='hero'?(existing?.brand||p.name):kind==='gallery'?
+          AUTO_VISUAL_LABELS[(slot??0)+1]||'Mockup ilustrativo':'Prévia ilustrativa do kit digital'})});
     const result=await res.json();
     if(!res.ok)throw new Error(result.error||'Falha ao gerar imagem.');
     return result.url as string;
@@ -102,6 +105,43 @@ export default function RemodelPage(){
     }catch(e){
       setError(e instanceof Error?e.message:'A geração de imagens falhou. Você pode usar os mockups visuais do HTML.');
     }finally{setImageBusy(false);}
+  }
+  async function generateTenImages(){
+    if(!p||!draft||imageBusy)return;
+    if(!confirm('Esta operação gera 10 imagens com a API de imagens e consome créditos pagos. Os 15 mockups ilustrativos gratuitos já aparecem no HTML. Deseja gerar as imagens pagas?'))return;
+    if((draft.gallery||[]).some(item=>item.url)&&
+      !confirm('Existem imagens cadastradas. Deseja substituir as primeiras 10 imagens da galeria?'))return;
+    setError('');setSuccess('');setImageBusy(true);setImageProgress(0);
+    let done=0;
+    try{
+      for(let i=0;i<10;i++){
+        const url=await createVisual('gallery',actualContents,draft,i);
+        if(!url)throw new Error('A imagem '+(i+1)+' não retornou uma URL válida.');
+        setDraft(prev=>{
+          if(!prev)return prev;
+          const gallery=Array.from({length:Math.max(10,prev.gallery?.length||0)},(_,j)=>
+            prev.gallery?.[j]||{label:AUTO_VISUAL_LABELS[j+1]||'Prévia do produto',url:''});
+          gallery[i]={label:AUTO_VISUAL_LABELS[i+1]||'Prévia do produto',url};
+          return {...prev,gallery};
+        });
+        done++;
+        setImageProgress(done);
+      }
+      setSuccess('As 10 imagens foram geradas e vinculadas à galeria. Revise as imagens e clique em Salvar rascunho. As imagens são conceituais, não amostras reais dos arquivos.');
+    }catch(e){
+      setError('Geração interrompida após '+done+'/10 imagens. '+(e instanceof Error?e.message:'Falha na API.')+
+        ' As que foram concluídas continuam na galeria. Os mockups gratuitos completam os espaços vazios.');
+    }finally{setImageBusy(false);}
+  }
+  function applyReferenceTemplate(style:'clinic'|'editorial'){
+    setDraft(prev=>prev?{
+      ...prev,visualStyle:style,accent:style==='clinic'?'#2a9d8f':'#e5b853',
+      gallery:Array.from({length:Math.max(10,prev.gallery?.length||0)},(_,i)=>
+        prev.gallery?.[i]||{label:AUTO_VISUAL_LABELS[i+1]||'Prévia do material',url:''})
+    }:prev);
+    setError('');setSuccess(style==='clinic'?
+      'Modelo Consultório: galeria de rolagem infinita, vídeo, dores, prova real, kit, bônus e planos.':
+      'Modelo Agenda: hero escura, depoimentos, galeria com setas, passos, conteúdo, bônus e planos.');
   }
   function moveSection(key:NonNullable<SalesPageDraft['sectionOrder']>[number],direction:number){
     setDraft(prev=>{
@@ -123,7 +163,7 @@ export default function RemodelPage(){
         body:JSON.stringify({productId:p.id,competitorCopy:referenceCopy.slice(0,7000),
           differentiation:differentiation.slice(0,2500),
           actualContents:actualContents.slice(0,3500),tone,
-          pageStyle:draft?.visualStyle==='editorial'?'editorial':'classic',championMode,championProductId:championMode==='manual'?championProductId:undefined})});
+          pageStyle:draft?.visualStyle==='clinic'?'clinic':draft?.visualStyle==='editorial'?'editorial':'classic',championMode,championProductId:championMode==='manual'?championProductId:undefined})});
       const result=await res.json();
       if(!res.ok)throw new Error(result.error||'Não foi possível gerar a copy.');
       const nextDraft:SalesPageDraft={...result.draft,
@@ -254,17 +294,22 @@ export default function RemodelPage(){
       <div className="flex between wrap center gap-3">
         <div style={{maxWidth:650}}>
           <div style={{fontSize:11,letterSpacing:2,color:'#efcc79',fontWeight:800}}>NOVO MODELO VISUAL · REFERÊNCIA ENVIADA</div>
-          <h2 style={{fontSize:21,margin:'9px 0'}}>Página premium: azul-marinho + dourado</h2>
+          <h2 style={{fontSize:21,margin:'9px 0'}}>2 modelos completos, 15 visuais e carrosséis</h2>
           <p style={{fontSize:13,color:'#e4e9f1',lineHeight:1.7,margin:0}}>
-            Hero com mockup, CTA dourado, blocos creme/branco, cards de benefícios, prévias,
-            bônus confirmados, planos, FAQ e fechamento escuro — organizado para celular.
+            Escolha entre a página estilo Agenda Católica (azul e dourado) e Consultório Lúdico
+            (verde-água e bege). Ambos incluem 15 mockups ilustrativos grátis, galerias, cards, bônus,
+            planos e FAQ — tudo responsivo e editável.
           </p>
         </div>
-        <button className="btn" style={{background:'#e5b853',color:'#13233c',fontWeight:800}}
-          onClick={applyEditorialTemplate}>Aplicar modelo da imagem</button>
+        <div className="flex wrap gap-2">
+          <button className="btn" style={{background:'#e5b853',color:'#13233c',fontWeight:800}}
+            onClick={()=>applyReferenceTemplate('editorial')}>Usar modelo Agenda Católica</button>
+          <button className="btn" style={{background:'#2a9d8f',color:'#fff',fontWeight:800}}
+            onClick={()=>applyReferenceTemplate('clinic')}>Usar modelo Consultório Lúdico</button>
+        </div>
       </div>
       <p style={{fontSize:11,color:'#cdd7e6',marginTop:12}}>
-        Mockups em CSS e exportação HTML não precisam de API de imagens.
+        Os 15 mockups SVG estão incluídos no HTML gratuitamente.
         Avaliações, bônus e garantia só aparecem quando forem preenchidos com dados reais.
       </p>
     </section>
@@ -413,14 +458,16 @@ export default function RemodelPage(){
               <option value="dark">Escuro moderno</option>
               <option value="light">Claro profissional</option>
               <option value="warm">Quente editorial</option>
-              <option value="editorial">Azul-marinho + dourado (modelo da imagem)</option>
+              <option value="editorial">Agenda Católica: azul-marinho + dourado, galeria com setas</option>
+              <option value="clinic">Consultório Lúdico: teal + bege, carrossel infinito</option>
             </select>
           </label>
           <EditField label="Título da galeria de mockups" value={draft.galleryTitle||''}
             onChange={v=>change('galleryTitle',v)} />
-          {draft.visualStyle==='editorial'
-            ?<div className="info-note mt-3">O modelo da imagem utiliza uma sequência fixa de blocos para manter o visual:
-              hero → depoimentos confirmados → dor → prévias → benefícios → uso → bônus confirmados → preços → garantia confirmada → FAQ → CTA final.
+          {(draft.visualStyle==='editorial'||draft.visualStyle==='clinic')
+            ?<div className="info-note mt-3">A ordem dos blocos acompanha a referência escolhida.
+              Consultório: hero → rolagem de imagens → demonstração → dores → benefícios → depoimentos reais → conteúdo → bônus → planos → garantia → FAQ → CTA.
+              Agenda: hero → depoimentos reais → dores → galeria com setas → uso → recursos → bônus → planos → garantia → FAQ → CTA.
             </div>
             :<>
           <div className="micro mt-3">ORDEM DOS BLOCOS — os mockups 3D aparecem mesmo sem fotografias</div>
@@ -436,7 +483,18 @@ export default function RemodelPage(){
             </div>
           ))}
             </>}
-          <div className="micro mt-3">GALERIA — links públicos HTTPS; imagens próprias ou geradas pela IA</div>
+          <div className="micro mt-3">GALERIA — 15 imagens ilustrativas grátis aparecem automaticamente. Links HTTPS informados aqui substituem os visuais correspondentes.</div>
+          <button className="btn mt-2" onClick={()=>void generateTenImages()} disabled={imageBusy||generating}>
+            {imageBusy?<LoaderCircle size={15} className="spin"/>:<Sparkles size={15}/>}
+            {imageBusy?'Gerando imagem '+imageProgress+'/10...':'Gerar 10 imagens com IA (usa créditos pagos)'}
+          </button>
+          <p className="micro mt-2">É opcional. O HTML já contém 15 imagens SVG gratuitas e diferentes, mesmo sem usar a API.</p>
+          <EditField label="Vídeo demonstrativo (YouTube/Vimeo HTTPS, opcional)"
+            value={draft.demoVideoUrl||''} onChange={v=>change('demoVideoUrl',v)}
+            placeholder="https://www.youtube.com/watch?v=..."/>
+          <EditField label="Faixa superior (somente texto verdadeiro, sem escassez inventada)"
+            value={draft.topRibbon||''} onChange={v=>change('topRibbon',v)}
+            placeholder="Ex.: CONTEÚDO DIGITAL · MATERIAL AUTORAL"/>
           {(draft.gallery||[]).map((entry,i)=><div className="panel mt-2" key={i} style={{padding:12}}>
             <EditField label={'Legenda '+(i+1)} value={entry.label} onChange={v=>setDraft(prev=>
               prev?{...prev,gallery:(prev.gallery||[]).map((g,n)=>n===i?{...g,label:v}:g)}:prev)}/>
@@ -447,14 +505,14 @@ export default function RemodelPage(){
               <Trash2 size={14}/> Remover imagem
             </button>
           </div>)}
-          <button className="btn mt-2" disabled={(draft.gallery||[]).length>=4}
+          <button className="btn mt-2" disabled={(draft.gallery||[]).length>=15}
             onClick={()=>setDraft(prev=>prev?{...prev,gallery:[...(prev.gallery||[]),
               {label:'Imagem do produto',url:''}]}:prev)}>
             <Plus size={15}/> Adicionar imagem
           </button>
         </div>
       </details>
-      {draft.visualStyle==='editorial'&&<details className="advanced-details mt-3" open>
+      {(draft.visualStyle==='editorial'||draft.visualStyle==='clinic')&&<details className="advanced-details mt-3" open>
         <summary>Blocos extras do modelo: depoimentos, bônus, planos e garantia</summary>
         <div style={{padding:16}}>
           <p className="micro">Estes blocos são opcionais. Eles aparecem na página publicada somente depois de você cadastrar informações verdadeiras e verificadas.</p>
