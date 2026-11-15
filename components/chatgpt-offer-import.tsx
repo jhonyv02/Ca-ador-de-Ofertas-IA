@@ -47,7 +47,7 @@ export function ChatgptOfferImport(){
       'Observações: '+offer.notes,
       'Teste de 7 dias: D1 validar produto/links/mercado; D2 checar criativos Meta reais e amostras; D3-4 testar criativo/página com orçamento controlado; D5-6 ajustar ou testar variante; D7 analisar CPC, CPA, compras, reembolsos e margem.'
     ];
-    return lines.join('\\n');
+    return lines.join('\n');
   }
 
   async function synchronize(silent=false){
@@ -74,7 +74,7 @@ export function ChatgptOfferImport(){
           if(!existing.landing_url&&offer.url)patch.landing_url=offer.url;
           if(!existing.checkout_url&&offer.checkout)patch.checkout_url=offer.checkout;
           if(!existing.notes?.includes('#pesquisa-meta-v2:'+offer.key)){
-            const combined=[existing.notes,block].filter(Boolean).join('\\n\\n');
+            const combined=[existing.notes,block].filter(Boolean).join('\n\n');
             if(combined.length<=5000)patch.notes=combined;
           }
           if(Object.keys(patch).length){
