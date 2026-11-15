@@ -106,7 +106,8 @@ export default function RemodelPage(){
   function moveSection(key:NonNullable<SalesPageDraft['sectionOrder']>[number],direction:number){
     setDraft(prev=>{
       if(!prev)return prev;
-      const order=prev.sectionOrder?.length?prev.sectionOrder:['pain','benefits','mockups','includes','steps','faq'];
+      const order:NonNullable<SalesPageDraft['sectionOrder']>=prev.sectionOrder?.length
+        ?prev.sectionOrder:['pain','benefits','mockups','includes','steps','faq'];
       const index=order.indexOf(key),next=index+direction;
       if(index<0||next<0||next>=order.length)return prev;
       const copy=[...order];[copy[index],copy[next]]=[copy[next],copy[index]];
