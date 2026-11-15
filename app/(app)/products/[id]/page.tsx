@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, CirclePlus, Edit, ExternalLink, Flame, ImagePlus, Plus, Trash2, Wallet, FileText, Clock3, BarChart3, Sparkles } from 'lucide-react';
 import type { Ad } from '@/lib/types';
 import { useWorkspace } from '@/components/workspace';
@@ -15,7 +15,17 @@ import { chatOffers, metaSearchLinks } from '@/lib/chatgpt-offers';
 export default function ProductDetail(){
   const {id}=useParams<{id:string}>();const router=useRouter();const {products,ads,loading,supabase,refresh,latestAnalysis,testRuns}=useWorkspace();
   const [edit,setEdit]=useState(false);const [addAd,setAddAd]=useState(false);const [inspect,setInspect]=useState<Ad|null>(null);const [error,setError]=useState('');
-  const product=products.find(p=>p.id===id);const curated=product?chatOffers.find(o=>product.notes?.includes('#chatgpt:'+o.key)||product.notes?.includes('#pesquisa-meta-v2:'+o.key)||o.name===product.name):undefined;const productAds=ads.filter(a=>a.product_id===id);const analysis=latestAnalysis(id);const score=product?opportunityScore(product,productAds,analysis):null;
+  const product=products.find(p=>p.id===id);
+  const [capturePreview,setCapturePreview]=useState('');
+  useEffect(()=>{
+    const paths=[...((product?.notes||'').matchAll(/Print privado \(Supabase creatives\): ([^\r\n]+)/g))];
+    const last=paths.length?paths[paths.length-1][1]:null;
+    let alive=true;
+    if(!last){setCapturePreview('');return;}
+    void supabase.storage.from('creatives').createSignedUrl(last.trim(),900)
+      .then(({data,error})=>{if(alive)setCapturePreview(!error?(data?.signedUrl||''):'');});
+    return ()=>{alive=false;};
+  },[product?.notes,supabase]);const curated=product?chatOffers.find(o=>product.notes?.includes('#chatgpt:'+o.key)||product.notes?.includes('#pesquisa-meta-v2:'+o.key)||o.name===product.name):undefined;const productAds=ads.filter(a=>a.product_id===id);const analysis=latestAnalysis(id);const score=product?opportunityScore(product,productAds,analysis):null;
   if(loading)return <Load/>;
   if(!product)return <><PageHeading title="Produto não encontrado" description="Esse produto pode ter sido excluído ou você não tem acesso a ele."/><Link href="/products" className="btn">Voltar à lista</Link></>;
   const costsKnown=product.fulfillment_cost!==null&&product.extra_cost!==null;
@@ -53,6 +63,15 @@ export default function ProductDetail(){
         <p><strong>Prioridade editorial:</strong> {curated.priority} (não indica vendas comprovadas)</p>
         <p><strong>Risco a checar:</strong> {curated.risk||'Validar mercado, produto e CPA'}</p>
       </div>
+    </Section>}
+    {capturePreview&&<Section title="Print capturado no navegador" description="Registro da página concorrente na data da captura; não é prova de resultados de vendas.">
+      <a href={capturePreview} target="_blank" rel="noopener noreferrer" className="small-link">
+        Abrir imagem completa <ExternalLink size={14}/></a>
+      <a href={capturePreview} target="_blank" rel="noopener noreferrer">
+        <img src={capturePreview} alt="Captura privada da página de referência"
+          style={{width:'100%',maxHeight:360,objectFit:'contain',marginTop:12,
+            background:'#0d1b25',borderRadius:8,border:'1px solid #334155'}}/>
+      </a>
     </Section>}
     <Section title="Evolução de testes" description="Resultados reais preenchidos por você.">{testRuns.filter(t=>t.product_id===id).length===0?<p className="muted" style={{fontSize:12}}>Nenhum teste registrado. Use o simulador para registrar orçamento e resultados.</p>:testRuns.filter(t=>t.product_id===id).map(t=><div className="watchlist-row" key={t.id}><span>{shortDate(t.start_date)} · {t.sales} vendas</span><strong>{brl(t.revenue-t.spend,product.currency)}*</strong></div>)}<Link href={`/simulator?product=${id}`} className="btn wide mt-2"><BarChart3 size={16}/> Simular e registrar testes</Link><p className="micro mt-2">* Receita menos gasto com anúncio, sem descontar outros custos.</p></Section>
   </div></div>
