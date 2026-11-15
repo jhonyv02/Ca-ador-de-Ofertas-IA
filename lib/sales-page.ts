@@ -61,7 +61,7 @@ export function serializeSalesDraft(d:SalesPageDraft){
 export function salesPageHtml(d:SalesPageDraft,options:{name:string;price:number|null;
  currency:string;checkout:string}):string{
   const accent=cssColor(d.accent);
-  const checkout=url(options.checkout);
+  const checkout=options.checkout.trim().toLowerCase().startsWith('https://')?url(options.checkout):'';
   const price=options.price===null?'Preço a confirmar':new Intl.NumberFormat('pt-BR',
     {style:'currency',currency:options.currency||'BRL'}).format(options.price);
   const cta=checkout?
@@ -72,7 +72,7 @@ export function salesPageHtml(d:SalesPageDraft,options:{name:string;price:number
   const steps=d.steps.filter(Boolean).slice(0,5).map((t,i)=>'<li><span class="number">'+(i+1)+'</span><p>'+esc(t)+'</p></li>').join('');
   const faq=d.faq.filter(q=>q.question&&q.answer).slice(0,6).map(q=>
     '<details><summary>'+esc(q.question)+'</summary><p>'+esc(q.answer)+'</p></details>').join('');
-  const image=url(d.imageUrl);
+  const image=d.imageUrl.trim().toLowerCase().startsWith('https://')?url(d.imageUrl):'';
   const heroImage=image?'<div class="visual"><img src="'+esc(image)+'" alt="'+esc(d.brand)+'" loading="lazy"></div>':
     '<div class="visual placeholder" aria-hidden="true"><span>MATERIAL DIGITAL</span><strong>'+esc(d.brand)+'</strong><small>Apresentação visual do produto</small></div>';
   const css=[
