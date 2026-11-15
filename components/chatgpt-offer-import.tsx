@@ -48,7 +48,7 @@ export function ChatgptOfferImport(){
           keyMarker(offer.key),
           'Triagem inicial: '+(offer.priority==='A'?'investigar primeiro':offer.priority==='B'?'investigar em seguida':'menor urgência de teste')+'.',
           'Evidência: os anúncios da Meta ainda NÃO foram verificados para esta oferta.',
-          'Antes de investir: confirmar preço, URL, licença do conteúdo, concorrência e custo por venda.',
+          'Antes de investir: confirmar preço, URL, concorrência, custo por venda e construir produto novo autoral.',
           offer.notes
         ].filter(Boolean).join('\n');
         const row={
