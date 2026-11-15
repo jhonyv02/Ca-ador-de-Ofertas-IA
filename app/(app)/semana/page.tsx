@@ -1,14 +1,12 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
 import Link from 'next/link';
-import {ArrowRight,BrainCircuit,CheckCircle2,ClipboardCheck,ExternalLink,
-  LoaderCircle,RefreshCcw,ShieldAlert,Target,TriangleAlert} from 'lucide-react';
+import {ArrowRight,BrainCircuit,ClipboardCheck,ExternalLink,LoaderCircle,ShieldAlert} from 'lucide-react';
 import {useWorkspace} from '@/components/workspace';
 import {PageHeading,Feedback,Load} from '@/components/ui';
 import {brl} from '@/lib/utils';
 import {checkKeys,directCheckLabels,directFlags,directReadiness,notesWithFlag,
   type DirectCheck} from '@/lib/direct-traffic';
-import type {Product} from '@/lib/types';
 
 type Comparison={product_id:string;name:string;score:number;signal:'prepare'|'potential'|'reject';
   criticism:string;ready:boolean;blockers:string[]};
@@ -47,7 +45,7 @@ export default function WeeklyDirect(){
     void supabase.auth.getUser().then(({data})=>{if(alive)setUserId(data.user?.id||'');});
     return ()=>{alive=false;};
   },[supabase]);
-  useEffect(()=>{if(products.length&&!selectedId)setSelectedId(products[0].id);},[products,selectedId]);
+  useEffect(()=>{if(ranked.length&&!selectedId)setSelectedId(ranked[0].product.id);},[ranked,selectedId]);
   const signature=useMemo(()=>[
     String(budget),...products.map(p=>p.id+':'+p.updated_at).sort(),
     ...ads.map(a=>a.id+':'+a.updated_at).sort(),
