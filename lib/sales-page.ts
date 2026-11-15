@@ -1,6 +1,6 @@
 import type {Product} from '@/lib/types';
 import {safeHttpUrl} from '@/lib/utils';
-import {editorialSalesPageHtml} from '@/lib/editorial-sales-page';
+import {referenceSalesPageHtml} from '@/lib/reference-sales-page';
 
 export const PAGE_PREFIX='CACADOR_ORIGINAL_PAGE_V1:';
 export type SalesPageDraft={
@@ -10,9 +10,11 @@ export type SalesPageDraft={
   faqTitle:string;faq:{question:string;answer:string}[];
   ctaText:string;finalTitle:string;finalBody:string;
   accent:string;imageUrl:string;
-  visualStyle?:'dark'|'light'|'warm'|'editorial';
+  visualStyle?:'dark'|'light'|'warm'|'editorial'|'clinic';
   sectionOrder?:('pain'|'benefits'|'mockups'|'includes'|'steps'|'faq')[];
   galleryTitle?:string;
+  demoVideoUrl?:string;
+  topRibbon?:string;
   gallery?:{label:string;url:string}[];
   winnerReferenceId?:string;
   proofTitle?:string;
@@ -62,7 +64,8 @@ export function starterPage(product:Product):SalesPageDraft{
     pricingTitle:'Escolha a sua opção',ownOfferPrice:'',painPoints:[],guaranteeText:'',
     secondPlanName:'',secondPlanPrice:'',secondPlanCheckout:'',secondPlanItems:[],
     sectionOrder:['pain','benefits','mockups','includes','steps','faq'],
-    galleryTitle:'Veja como o material pode ser apresentado',gallery:[]
+    galleryTitle:'Veja como o material pode ser apresentado',gallery:[],
+    demoVideoUrl:'',topRibbon:''
   };
 }
 export function readSalesDraft(value:string):SalesPageDraft|null{
@@ -79,10 +82,12 @@ export function readSalesDraft(value:string):SalesPageDraft|null{
     const sectionOrder=Array.isArray(raw.sectionOrder)?
       raw.sectionOrder.filter((x:unknown)=>typeof x==='string'&&validSectionKeys.includes(x)):undefined;
     return {...raw,sectionOrder:sectionOrder as SalesPageDraft['sectionOrder'],
-      visualStyle:['dark','light','warm','editorial'].includes(raw.visualStyle)?raw.visualStyle:'dark',
+      visualStyle:['dark','light','warm','editorial','clinic'].includes(raw.visualStyle)?raw.visualStyle:'dark',
       gallery:Array.isArray(raw.gallery)?raw.gallery.filter((v:unknown)=>!!v&&typeof v==='object'&&
-        typeof (v as {label?:unknown}).label==='string'&&typeof (v as {url?:unknown}).url==='string').slice(0,4):[],
+        typeof (v as {label?:unknown}).label==='string'&&typeof (v as {url?:unknown}).url==='string').slice(0,15):[],
       galleryTitle:typeof raw.galleryTitle==='string'?raw.galleryTitle:'Veja o material por dentro',
+      demoVideoUrl:typeof raw.demoVideoUrl==='string'?raw.demoVideoUrl:'',
+      topRibbon:typeof raw.topRibbon==='string'?raw.topRibbon:'',
       proofItems:Array.isArray(raw.proofItems)?raw.proofItems.filter((p:unknown)=>
         !!p&&typeof p==='object'&&typeof (p as {quote?:unknown}).quote==='string'&&
         typeof (p as {author?:unknown}).author==='string').slice(0,6):[],
@@ -105,12 +110,13 @@ export function readSalesDraft(value:string):SalesPageDraft|null{
 }
 export function serializeSalesDraft(d:SalesPageDraft){
   const value=PAGE_PREFIX+JSON.stringify(d);
-  if(value.length>11500)throw new Error('A página ficou longa demais. Reduza textos antes de salvar (máximo 11.500 caracteres).');
+  if(value.length>26000)throw new Error('A página ficou longa demais. Reduza textos antes de salvar (máximo 26.000 caracteres).');
   return value;
 }
 export function salesPageHtml(d:SalesPageDraft,options:{name:string;price:number|null;
  currency:string;checkout:string}):string{
-  if(d.visualStyle==='editorial')return editorialSalesPageHtml(d,options);
+  if(d.visualStyle==='editorial')return referenceSalesPageHtml(d,options,'agenda');
+  if(d.visualStyle==='clinic')return referenceSalesPageHtml(d,options,'clinic');
   const accent=cssColor(d.accent);
   const checkout=options.checkout.trim().toLowerCase().startsWith('https://')?url(options.checkout):'';
   const price=options.price===null?'Preço a confirmar':new Intl.NumberFormat('pt-BR',
