@@ -91,7 +91,7 @@ O projeto usa **Next.js 16 e precisa de execução Node.js**. Hospedagem que só
 Acesse **/semana** após fazer login. O menu principal e o dashboard possuem um atalho.
 
 - Faça a importação das ofertas em **/products**; ofertas importadas são referências de pesquisa, **não produtos próprios licenciados**.
-- Informe o orçamento TOTAL da semana (R$ 120 apenas como valor inicial ajustável).
+- Informe o orçamento **DIÁRIO** (R$ 35 como valor inicial ajustável). O painel calcula o total da semana automaticamente (**R$ 245 por 7 dias**) e transmite ambos os valores à análise IA.
 - Clique **Análise crítica com IA**. A API \`POST /api/weekly-direct\` coleta produtos, anúncios e testes exclusivamente do usuário autenticado e avalia **uma única oferta** por vez, com diagnóstico, riscos, comparação e plano de 7 dias.
 - Não existe venda/ROAS presumido. A IA **não visita URLs**: só usa dados cadastrados. Um anúncio ativo no Meta não comprova lucro.
 - A prontidão exige: preço positivo, BR/BRL para teste no Brasil, página cadastrada, custos do produto e taxas preenchidos, margem de contribuição positiva e **seis confirmações manuais de verificação real** (produto autoral finalizado, página própria, checkout, criativo/copy, Purchase e entrega/suporte).
