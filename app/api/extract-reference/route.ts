@@ -4,7 +4,6 @@ import {serverClient} from '@/lib/supabase/server';
 import {resolve4} from 'node:dns/promises';
 import {request as httpsRequest} from 'node:https';
 import {isIP} from 'node:net';
-import type {LookupFunction} from 'node:dns';
 export const runtime='nodejs';
 
 const form=z.object({productId:z.string().uuid()}).strict();
@@ -44,7 +43,7 @@ async function publicHtml(value:string,remaining=2):Promise<string>{
     const lookup=((_hostname:string,options:any,callback:any)=>{
       if(options?.all)callback(null,[{address:safe.ip,family:4}]);
       else callback(null,safe.ip,4);
-    }) as LookupFunction;
+    });
     const req=httpsRequest(safe.url,{
       method:'GET',timeout:11000,lookup,
       headers:{'user-agent':'CacadorDeOfertasIA/1.0 (private manual research)',
