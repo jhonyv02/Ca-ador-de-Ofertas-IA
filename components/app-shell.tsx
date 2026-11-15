@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import {usePathname,useRouter} from 'next/navigation';
 import {useState} from 'react';
-import {LayoutDashboard,LibraryBig,Megaphone,GitCompareArrows,Calculator,Settings,LogOut,Menu,X,Target,ChevronRight,ExternalLink,MoreHorizontal,BrainCircuit} from 'lucide-react';
+import {LayoutDashboard,LibraryBig,Megaphone,GitCompareArrows,Calculator,Settings,LogOut,Menu,X,Target,ChevronRight,ExternalLink,MoreHorizontal,BrainCircuit,Globe2} from 'lucide-react';
 import {browserClient} from '@/lib/supabase/browser';
 import {WorkspaceProvider} from '@/components/workspace';
 import {LocaleProvider,useLocale} from '@/components/locale';
@@ -11,6 +11,7 @@ import {LocalePicker} from '@/components/global-options';
 const primary = [
  {href:'/dashboard',key:'dashboard',icon:LayoutDashboard},
  {href:'/products',key:'products',icon:LibraryBig},
+ {href:'/browser',key:'browser',icon:Globe2},
  {href:'/semana',key:'weekly',icon:BrainCircuit},
  {href:'/ads',key:'ads',icon:Megaphone},
  {href:'/compare',key:'compare',icon:GitCompareArrows},
@@ -32,7 +33,7 @@ function AppFrame({email,children}:{email:string;children:React.ReactNode}){
  const renderNav=(items:typeof primary)=>items.map(n=>{
    const Icon=n.icon;const active=pathname===n.href||(n.href==='/products'&&pathname.startsWith('/products/'));
    return <Link className={`nav-link ${active?'active':''}`} href={n.href} key={n.href} onClick={()=>setMenu(false)}>
-    <Icon size={18}/>{n.key==='weekly'?'Teste da Semana':t(n.key)}{active&&<ChevronRight className="nav-chevron" size={14}/>}
+    <Icon size={18}/>{n.key==='weekly'?'Teste da Semana':n.key==='browser'?'Navegador':t(n.key)}{active&&<ChevronRight className="nav-chevron" size={14}/>}
    </Link>;
  });
  return <div className="shell">
@@ -55,7 +56,7 @@ function AppFrame({email,children}:{email:string;children:React.ReactNode}){
   <div className="main-container">
    <header className="topbar">
     <button className="mobile-nav" aria-label="Abrir menu" onClick={()=>setMenu(!menu)}>{menu?<X size={22}/>:<Menu size={22}/>}</button>
-    <div className="breadcrumb">{t('dashboard')} <ChevronRight size={14}/><span>{selected?.key==='weekly'?'Teste da Semana':t(selected?.key||'products')}</span></div>
+    <div className="breadcrumb">{t('dashboard')} <ChevronRight size={14}/><span>{selected?.key==='weekly'?'Teste da Semana':selected?.key==='browser'?'Navegador':t(selected?.key||'products')}</span></div>
     <div className="top-actions"><LocalePicker/><span className="top-avatar">{email.charAt(0).toUpperCase()}</span></div>
    </header>
    <main className="content">{children}</main>
