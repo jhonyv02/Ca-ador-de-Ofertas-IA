@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { ArrowRight, Download, FolderSearch, Plus, Search } from 'lucide-react';
+import { ArrowRight, Download, FolderSearch, Plus, Search, Globe2 } from 'lucide-react';
 import { useWorkspace } from '@/components/workspace';
 import { Empty, Load, Modal, PageHeading, ScoreRing, StatusPill } from '@/components/ui';
 import { ProductForm } from '@/components/forms';
@@ -14,7 +14,7 @@ export default function Products(){
   const {t}=useLocale();
   const [newOpen,setNewOpen]=useState(false);const [search,setSearch]=useState('');const [status,setStatus]=useState('all');const [type,setType]=useState('all');
   const filtered=useMemo(()=>products.filter(p=>(status==='all'||p.status===status)&&(type==='all'||p.product_type===type)&&(`${p.name} ${p.niche} ${p.notes}`).toLowerCase().includes(search.toLowerCase())),[products,search,status,type]);
-  return <><PageHeading eyebrow={t("products")} title={t("productsTitle")} description={t("productsDescription")} action={<><button className="btn btn-ghost" onClick={()=>downloadCsv('produtos-cacador.csv',['Nome','Nicho','Tipo','Preço','Status','Página'],products.map(p=>[p.name,p.niche,p.product_type,p.sale_price,p.status,p.landing_url]))}><Download size={16}/>{t("export")}</button><button className="btn btn-primary" onClick={()=>setNewOpen(true)}><Plus size={17}/>{t("newProduct")}</button></>}/>
+  return <><PageHeading eyebrow={t("products")} title={t("productsTitle")} description={t("productsDescription")} action={<><button className="btn btn-ghost" onClick={()=>downloadCsv('produtos-cacador.csv',['Nome','Nicho','Tipo','Preço','Status','Página'],products.map(p=>[p.name,p.niche,p.product_type,p.sale_price,p.status,p.landing_url]))}><Download size={16}/>{t("export")}</button><Link href="/browser" className="btn btn-ghost"><Globe2 size={16}/> Navegar e capturar ofertas</Link><button className="btn btn-primary" onClick={()=>setNewOpen(true)}><Plus size={17}/>{t("newProduct")}</button></>}/>
   <div className="banner">
      <div><strong>Decida qual oferta vai para tráfego direto na semana</strong>
       <p>Avaliação crítica com IA, critérios de margem, riscos e bloqueios antes de investir.</p>
