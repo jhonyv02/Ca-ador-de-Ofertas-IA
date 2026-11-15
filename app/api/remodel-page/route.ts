@@ -15,7 +15,7 @@ const requestSchema=z.object({
   tone:z.enum(['direta','profissional','acolhedora']).default('direta'),
   championMode:z.enum(['auto','manual','none']).default('auto'),
   championProductId:z.string().uuid().optional(),
-  pageStyle:z.enum(['editorial','classic']).default('editorial')
+  pageStyle:z.enum(['editorial','clinic','classic']).default('editorial')
 }).strict();
 const field=(max:number)=>z.string().trim().min(1).max(max);
 const draftSchema=z.object({
@@ -115,7 +115,9 @@ export async function POST(req:Request){
     actual_product_contents_that_exist:input.actualContents,
     tone:input.tone,
     page_style:input.pageStyle==='editorial'?
-      'Premium editorial page: centered navy hero with product mockup and gold CTA; cream and white sections; real testimonials only; pain panel; product visual preview; benefits grid; steps; confirmed bonuses; optional genuine pricing tiers; guarantee only when verified; FAQ; navy closing CTA. Mobile-first.':
+      'Agenda-style original structure: navy blue gold hero and mockups; real testimonial carousel only if supplied; pain; 10 image swipe carousel; usage steps; features; visual stories; confirmed bonuses; two actual pricing plans; verified guarantee; FAQ; navy CTA. Mobile first.':
+      input.pageStyle==='clinic'?
+      'Clinic-style original structure: white and teal hero; 10 image infinite horizontal showcase; product demonstration video and 3 steps; pain cards; green mid-page CTA; real testimonials only if supplied; value stack; confirmed bonus kit; two real plans; verified guarantee; FAQ; green CTA. Mobile first.':
       'Classic landing page structure',
     own_champion_page:referenceDraft?{
       ordering:referenceDraft.sectionOrder||['pain','benefits','mockups','includes','steps','faq'],
@@ -175,15 +177,15 @@ export async function POST(req:Request){
   const checked=draftSchema.safeParse(parsed);
   if(!checked.success)return NextResponse.json({error:'A IA retornou um formato incompleto. Tente gerar novamente.'},{status:502});
   const draft:SalesPageDraft={...checked.data,
-    accent:input.pageStyle==='editorial'?'#e5b853':referenceDraft?.accent||'#12b886',imageUrl:'',
+    accent:input.pageStyle==='editorial'?'#e5b853':input.pageStyle==='clinic'?'#2a9d8f':referenceDraft?.accent||'#12b886',imageUrl:'',
     sectionOrder:referenceDraft?.sectionOrder||['pain','benefits','mockups','includes','steps','faq'],
-    visualStyle:input.pageStyle==='editorial'?'editorial':(referenceDraft?.visualStyle==='editorial'?'dark':referenceDraft?.visualStyle||'dark'),
+    visualStyle:input.pageStyle==='editorial'?'editorial':input.pageStyle==='clinic'?'clinic':(referenceDraft?.visualStyle==='editorial'||referenceDraft?.visualStyle==='clinic'?'dark':referenceDraft?.visualStyle||'dark'),
     galleryTitle:'Veja como este material pode ser apresentado',
     gallery:[],
     winnerReferenceId:reference?.id,
     proofTitle:'O que dizem nossos clientes',proofItems:[],
     bonusTitle:'Bônus incluídos',bonusItems:[],
-    pricingTitle:'Escolha sua opção',ownOfferPrice:'',painPoints:[],guaranteeText:'',
+    pricingTitle:'Escolha sua opção',ownOfferPrice:'',painPoints:[],guaranteeText:'',demoVideoUrl:'',topRibbon:'',
     secondPlanName:'',secondPlanPrice:'',secondPlanCheckout:'',secondPlanItems:[]
   };
   return NextResponse.json({
