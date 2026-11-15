@@ -1,6 +1,7 @@
 'use client';
 import {useEffect, useRef, useState} from 'react';
-import {BookOpenCheck, CloudDownload, LoaderCircle, RefreshCcw} from 'lucide-react';
+import {BookOpenCheck, LoaderCircle, RefreshCcw, ArrowRight, ExternalLink} from 'lucide-react';
+import Link from 'next/link';
 import {useWorkspace} from '@/components/workspace';
 import {chatOffers, metaSearchLinks, type ChatOffer} from '@/lib/chatgpt-offers';
 import {Feedback} from '@/components/ui';
@@ -19,7 +20,9 @@ function money(o:ChatOffer) {
   if(o.price===null)return 'Preço a verificar';
   return new Intl.NumberFormat('pt-BR',{style:'currency',currency:o.currency}).format(o.price);
 }
-export function ChatgptOfferImport(){
+let globalImportInProgress=false;
+
+export function ChatgptOfferImport({compact=false}:{compact?:boolean}){
   const {supabase,products,loading,refresh}=useWorkspace();
   const started=useRef(false);
   const busy=useRef(false);
@@ -51,7 +54,8 @@ export function ChatgptOfferImport(){
   }
 
   async function synchronize(silent=false){
-    if(busy.current)return;
+    if(busy.current||globalImportInProgress)return;
+    globalImportInProgress=true;
     busy.current=true;setSyncing(true);setFailure('');if(!silent)setMessage('');
     let created=0,updated=0;
     try{
@@ -105,7 +109,7 @@ export function ChatgptOfferImport(){
       if(created||updated)await refresh();
       setFailure(dbErrorMessage(e,'Falha ao sincronizar ofertas')+
         (created||updated?' ('+created+' criada(s), '+updated+' atualizada(s) antes da falha; execute novamente.)':''));
-    }finally{busy.current=false;setSyncing(false);}
+    }finally{busy.current=false;globalImportInProgress=false;setSyncing(false);}
   }
 
   // O usuário autorizou importar as ofertas encontradas. Em cada visita só
@@ -115,6 +119,42 @@ export function ChatgptOfferImport(){
     // Execução intencional apenas quando a consulta inicial do Workspace termina.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[loading]);
+
+  if(compact) return <section className="panel" style={{padding:18,marginBottom:20}}>
+    <div className="flex between center wrap gap-2">
+      <div>
+        <div className="micro">RADAR · OFERTAS ENCONTRADAS</div>
+        <h2 style={{fontSize:19,margin:'7px 0 4px'}}>Ofertas disponíveis para analisar</h2>
+        <p className="muted" style={{fontSize:13,maxWidth:670}}>
+          {chatOffers.length} referências no catálogo · {pending.length} ainda não cadastradas na sua conta.
+          A sincronização roda ao abrir o painel. Não é uma busca automática em tempo real pela internet.
+        </p>
+      </div>
+      <div className="flex wrap gap-2">
+        <button className="btn btn-ghost" onClick={()=>void synchronize()} disabled={syncing||loading}>
+          {syncing?<LoaderCircle size={16} className="spin"/>:<RefreshCcw size={16}/>}
+          {syncing?'Salvando ofertas...':'Sincronizar ofertas'}
+        </button>
+        <Link className="btn btn-primary" href="/products">Abrir {chatOffers.length} ofertas <ArrowRight size={15}/></Link>
+      </div>
+    </div>
+    {message&&<div className="mt-2"><Feedback type="success">{message}</Feedback></div>}
+    {failure&&<div className="mt-2"><Feedback type="error">{failure}</Feedback></div>}
+    <div className="card-grid mt-3">
+      {chatOffers.slice(-4).reverse().map(o=><div className="panel" key={o.key} style={{padding:12}}>
+        <div className="micro">{o.niche} · Grupo {o.priority}</div>
+        <strong style={{display:'block',fontSize:13,marginTop:4}}>{o.name}</strong>
+        <div className="flex between center gap-2 mt-2">
+          <span style={{fontSize:12}}>{money(o)}</span>
+          <span className="micro">{isPresent(o,products)?'No painel':'No catálogo'}</span>
+        </div>
+        {(o.url||o.marketplace)&&<a className="small-link mt-2" href={o.url||o.marketplace} target="_blank" rel="noopener noreferrer">
+          Ver página ou oferta <ExternalLink size={13}/>
+        </a>}
+      </div>)}
+    </div>
+    <p className="micro mt-2">Se o Supabase falhar, as referências acima continuam visíveis. Para descobrir ofertas inéditas na web, é necessária uma fonte de pesquisa atualizada.</p>
+  </section>;
 
   return <section className="panel" style={{padding:20,marginBottom:22}}>
     <div className="flex between center wrap gap-2">
