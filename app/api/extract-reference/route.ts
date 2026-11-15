@@ -21,7 +21,7 @@ function safePublicIPv4(value:string){
   if(a===0||a===10||a===127||a>=224)return false;
   if(a===169&&b===254||a===172&&b>=16&&b<=31||a===192&&b===168||
      a===100&&b>=64&&b<=127||a===198&&b>=18&&b<=19||
-     a===192&&b===0&&c===0||a===192&&b===0&&c===2||
+     a===192&&b===0||a===192&&b===0&&c===2||
      a===198&&b===51&&c===100||a===203&&b===0&&c===113)return false;
   return true;
 }
@@ -46,7 +46,7 @@ async function publicHtml(value:string,remaining=2):Promise<string>{
       else callback(null,safe.ip,4);
     }) as LookupFunction;
     const req=httpsRequest(safe.url,{
-      method:'GET',timeout:11000,lookup,maxRedirects:0,
+      method:'GET',timeout:11000,lookup,
       headers:{'user-agent':'CacadorDeOfertasIA/1.0 (private manual research)',
         'accept':'text/html,application/xhtml+xml',
         'accept-encoding':'identity'}},res=>{
