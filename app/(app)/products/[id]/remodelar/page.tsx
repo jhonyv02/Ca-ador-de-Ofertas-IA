@@ -49,6 +49,7 @@ export default function RemodelPage(){
   const [autoImages,setAutoImages]=useState(false);
   const [imageBusy,setImageBusy]=useState(false);
   const [imageProgress,setImageProgress]=useState(0);
+  const [uploadingSlot,setUploadingSlot]=useState<number|null>(null);
   const [winnerNotice,setWinnerNotice]=useState('');
   const candidates=useMemo(()=>pageWinnerCandidates(products,testRuns),[products,testRuns]);
   const best=useMemo(()=>suggestedWinner(products,testRuns),[products,testRuns]);
@@ -105,6 +106,49 @@ export default function RemodelPage(){
     }catch(e){
       setError(e instanceof Error?e.message:'A geração de imagens falhou. Você pode usar os mockups visuais do HTML.');
     }finally{setImageBusy(false);}
+  }
+  async function uploadGalleryImage(file:File,slot:number){
+    if(!p||slot<0||slot>14)return;
+    setError('');setSuccess('');setUploadingSlot(slot);
+    try{
+      if(!/^image\/(png|jpeg|webp)$/.test(file.type)||file.size>10*1024*1024)
+        throw new Error('Escolha uma imagem JPG, PNG ou WebP com até 10 MB.');
+      const url=URL.createObjectURL(file);
+      const loaded=new Image();
+      try{
+        await new Promise<void>((resolve,reject)=>{
+          loaded.onload=()=>resolve();
+          loaded.onerror=()=>reject(new Error('Não foi possível abrir a imagem enviada.'));
+          loaded.src=url;
+        });
+      }finally{URL.revokeObjectURL(url);}
+      const scale=Math.min(1,1600/loaded.naturalWidth,1600/loaded.naturalHeight);
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(loaded.naturalWidth*scale));
+      canvas.height=Math.max(1,Math.round(loaded.naturalHeight*scale));
+      const ctx=canvas.getContext('2d');
+      if(!ctx)throw new Error('Seu navegador não suporta a conversão de imagens.');
+      ctx.drawImage(loaded,0,0,canvas.width,canvas.height);
+      const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(v=>
+        v?resolve(v):reject(new Error('Não foi possível converter a imagem para WebP.')),'image/webp',0.83));
+      if(blob.size>5*1024*1024)throw new Error('Imagem acima de 5 MB após conversão.');
+      const {data:{user},error:authError}=await supabase.auth.getUser();
+      if(authError||!user)throw new Error('Faça login novamente para enviar suas imagens.');
+      const imagePath=user.id+'/'+p.id+'/'+crypto.randomUUID()+'.webp';
+      const {error:uploadError}=await supabase.storage.from('sales-page-assets')
+        .upload(imagePath,blob,{contentType:'image/webp',upsert:false});
+      if(uploadError)throw new Error('Erro no armazenamento de imagens públicas: '+uploadError.message);
+      const {data:publicData}=supabase.storage.from('sales-page-assets').getPublicUrl(imagePath);
+      setDraft(prev=>{
+        if(!prev)return prev;
+        const gallery=Array.from({length:Math.max(slot+1,prev.gallery?.length||0)},(_,i)=>
+          prev.gallery?.[i]||{label:AUTO_VISUAL_LABELS[i+1]||'Prévia do produto',url:''});
+        gallery[slot]={...gallery[slot],url:publicData.publicUrl};
+        return {...prev,gallery};
+      });
+      setSuccess('Imagem '+(slot+1)+' enviada e adicionada à prévia. Salve o rascunho para manter as alterações.');
+    }catch(e){setError(e instanceof Error?e.message:'Não foi possível carregar a imagem.');}
+    finally{setUploadingSlot(null);}
   }
   async function generateTenImages(){
     if(!p||!draft||imageBusy)return;
@@ -500,11 +544,25 @@ export default function RemodelPage(){
               prev?{...prev,gallery:(prev.gallery||[]).map((g,n)=>n===i?{...g,label:v}:g)}:prev)}/>
             <EditField label="URL pública da imagem" value={entry.url} onChange={v=>setDraft(prev=>
               prev?{...prev,gallery:(prev.gallery||[]).map((g,n)=>n===i?{...g,url:v}:g)}:prev)}/>
+            <label className="field mt-2" style={{fontSize:12}}>
+              {uploadingSlot===i?'Enviando imagem...':'Subir imagem do celular ou computador (até 10 MB)'}
+              <input type="file" accept="image/png,image/jpeg,image/webp"
+                disabled={uploadingSlot!==null||imageBusy}
+                onChange={e=>{const file=e.currentTarget.files?.[0];
+                  if(file)void uploadGalleryImage(file,i);
+                  e.currentTarget.value='';}}/>
+            </label>
             <button className="btn btn-danger" onClick={()=>setDraft(prev=>
               prev?{...prev,gallery:(prev.gallery||[]).filter((_,n)=>n!==i)}:prev)}>
               <Trash2 size={14}/> Remover imagem
             </button>
           </div>)}
+
+          <button className="btn mt-2" onClick={()=>setDraft(prev=>prev?{...prev,
+            gallery:Array.from({length:Math.max(10,prev.gallery?.length||0)},(_,i)=>
+              prev.gallery?.[i]||{label:AUTO_VISUAL_LABELS[i+1]||'Prévia do produto',url:''})}:prev)}>
+            Preparar 10 espaços para imagens próprias
+          </button>
           <button className="btn mt-2" disabled={(draft.gallery||[]).length>=15}
             onClick={()=>setDraft(prev=>prev?{...prev,gallery:[...(prev.gallery||[]),
               {label:'Imagem do produto',url:''}]}:prev)}>
