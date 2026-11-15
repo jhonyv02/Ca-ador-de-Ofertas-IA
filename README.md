@@ -94,7 +94,7 @@ Acesse **/semana** após fazer login. O menu principal e o dashboard possuem um 
 - Informe o orçamento TOTAL da semana (R$ 120 apenas como valor inicial ajustável).
 - Clique **Análise crítica com IA**. A API \`POST /api/weekly-direct\` coleta produtos, anúncios e testes exclusivamente do usuário autenticado e avalia **uma única oferta** por vez, com diagnóstico, riscos, comparação e plano de 7 dias.
 - Não existe venda/ROAS presumido. A IA **não visita URLs**: só usa dados cadastrados. Um anúncio ativo no Meta não comprova lucro.
-- A prontidão exige: preço positivo, BR/BRL para teste no Brasil, página cadastrada, custos do produto e taxas preenchidos, margem de contribuição positiva e **seis confirmações manuais de verificação real** (direitos, página própria, checkout, criativo/copy, Purchase e entrega/suporte).
+- A prontidão exige: preço positivo, BR/BRL para teste no Brasil, página cadastrada, custos do produto e taxas preenchidos, margem de contribuição positiva e **seis confirmações manuais de verificação real** (produto autoral finalizado, página própria, checkout, criativo/copy, Purchase e entrega/suporte).
 - O CPA máximo de equilíbrio é preço menos custos informados; o teto conservador mostrado é 70% dessa contribuição como referência de planejamento, **não uma previsão de performance**.
 - Se o checklist estiver incompleto, a IA só pode indicar a **melhor ideia para preparar**, nunca autorização para gastar em anúncios.
 - Os pareceres mais recentes ficam no armazenamento local do navegador por até 48 horas, isolados por ID do usuário; não são uma tabela nova no Supabase. Alterar produtos, anúncios, resultados ou orçamento invalida o parecer salvo.
@@ -103,6 +103,22 @@ Acesse **/semana** após fazer login. O menu principal e o dashboard possuem um 
 - Não foi necessário migrar o banco existente: os marcadores do checklist são armazenados em \`products.notes\`; mantenha os registros e os limites de caracteres. A edição do cadastro pode ser usada para revisar tudo.
 
 Para validar antes de promover para produção: rode \`npm run lint\`, \`npm run test:meta\`, \`npm run build\`, verifique login e RLS, simule produto com custo não informado, valide erro 503 sem chave de IA e teste a rota com chave real em ambiente controlado. **Commit no GitHub não garante publicação na Hostinger**.
+
+
+## Remodelagem de página de vendas — mobile-first
+
+- No dossiê **/products/[id]** ou em **Teste da Semana**, clique **Remodelar página de vendas**.
+- A tela **/products/[id]/remodelar** usa a oferta do concorrente como referência para **construir um produto novo e autoral**. Não exige licença de revenda de material de terceiros porque não vendemos o produto deles. Não copie texto original, imagens, marcas ou elementos distintivos.
+- Clique **Ler copy do link** para tentar extrair apenas texto HTML público do link cadastrado (consulta individual, sob demanda, com filtragem de hosts/IP e redirects). Sites protegidos ou que dependam de JavaScript podem exigir **colar o texto manualmente**.
+- Informe o que é realmente diferente no seu produto e **quais entregáveis já estão produzidos**. Sem essa confirmação, a IA escreve placeholders editáveis em vez de inventar material.
+- Clique **Gerar nova página com IA**. A rota autenticada \`POST /api/remodel-page\` consulta os anúncios salvos e a copy de referência, mas gera uma estrutura de texto original, sem repetir frases ou identidade da concorrência; use \`PAGE_REMODEL_MODEL\` para configurar um modelo dedicado, ou \`OPENAI_MODEL\` para o mesmo do sistema.
+- É possível editar título, subtítulo, dores, benefícios, entregáveis, passos, FAQ, imagem por URL pública, cor, CTA e URL do **seu próprio checkout**. A prévia alterna entre celular e desktop, com HTML mobile-first e CTA fixo em telas pequenas.
+- **Salvar rascunho** usa o campo existente \`products.landing_copy\` com prefixo \`CACADOR_ORIGINAL_PAGE_V1:\`, preservado no formulário comum. Não requer migração SQL e o usuário só acessa seu próprio produto (RLS).
+- **Baixar HTML** ou **Copiar código** produz uma página estática pronta para hospedar, sem scripts e com texto escapado. Isso **não publica automaticamente na Hostinger**. Os CTAs ficam desabilitados na página se o checkout não estiver cadastrado.
+- Depois de hospedar o HTML no domínio escolhido, substitua o link de referência no campo **Página de vendas** do produto pelo URL **seu**; confirme preço, conteúdo pronto, teste do checkout, entrega e evento de compra no Meta.
+- Sem \`OPENAI_API_KEY\`, o botão **Criar modelo base sem IA** continua funcionando. O editor não possui imagens geradas por IA nem envia criativos/arquivos automaticamente ao domínio.
+
+Antes de fazer deploy rode \`npm run lint\`, \`npm run test:meta\` e \`npm run build\`, teste a leitura de links (válidos, privados, redirecionamentos, página bloqueada) e faça verificações no celular de 320px/390px e checkout HTTPS.
 
 ## Como funciona a IA
 
