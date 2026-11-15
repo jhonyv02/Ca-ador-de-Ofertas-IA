@@ -5,7 +5,8 @@ import {serverClient} from '@/lib/supabase/server';
 export const runtime='nodejs';
 const requestSchema=z.object({
   productId:z.string().uuid(),
-  kind:z.enum(['hero','preview']),
+  kind:z.enum(['hero','preview','gallery']),
+  slot:z.number().int().min(0).max(14).optional(),
   contents:z.string().max(1800).default(''),
   label:z.string().max(130).default('')
 }).strict();
@@ -14,7 +15,7 @@ function allow(userId:string){
   const now=Date.now();
   const saved=hits.get(userId);
   if(!saved||now>saved.expires){hits.set(userId,{count:1,expires:now+20*60*1000});return true;}
-  if(saved.count>=3)return false;
+  if(saved.count>=12)return false;
   saved.count++;return true;
 }
 export async function POST(req:Request){
@@ -33,20 +34,40 @@ export async function POST(req:Request){
     .select('id,name,niche,promise').eq('id',body.productId).eq('user_id',user.id).single();
   if(pError||!product)return NextResponse.json({error:'Produto não encontrado nesta conta.'},{status:404});
   if(!allow(user.id))return NextResponse.json({
-    error:'Limite de 3 imagens em 20 minutos. Cada geração tem custo na API.'
+    error:'Limite de 12 imagens em 20 minutos. Cada geração usa créditos da API.'
   },{status:429});
+  const themes=[
+    'premium digital product bundle on a bright studio tabletop',
+    'digital workbook spread with abstract diagram pages',
+    'professional bound guide shown from a three-quarter angle',
+    'smartphone screen with a clean abstract learning dashboard',
+    'tablet and printable materials organized side-by-side',
+    'set of illustrative learning cards floating on a soft background',
+    'neat collection of PDF-style printable worksheets',
+    'digital checklist notebook with minimalist graphic elements',
+    'modular resource library displayed on a tablet and laptop',
+    'premium collection of printable educational sheets',
+    'elegant book and four separate digital resources in perspective',
+    'overhead presentation of guide sheets and notebook',
+    'side-view tablet mockup with stylized content panels',
+    'organized boxed kit concept with booklet and cards',
+    'complete visual summary of a digital material collection'
+  ];
+  const variation=body.kind==='gallery'?
+    'COMPOSITION '+String((body.slot??0)+1)+': '+themes[body.slot??0]:
+    body.kind==='hero'?'Central hero product kit in 3D with generous margins':
+    'Detail-oriented editorial close-up of illustrative materials';
   const prompt=[
     'Create one entirely ORIGINAL, premium 3D product presentation image for a mobile-first digital product sales page.',
     'Studio product photography illustration, sophisticated modern editorial art direction, clean shadows, contrasting background, attention to realistic paper and device textures.',
-    body.kind==='hero'
-      ?'Composition: one 3D book cover, a tablet and 2 printable sheets displayed together; central large hero visual, generous negative space.'
-      :'Composition: a close-up mockup of digital workbook sheets and one device showing abstract visual organization. Make it distinct from a hero composition.',
+    variation,
     'PRODUCT TOPIC: '+product.niche.slice(0,90)+'. '+product.promise.slice(0,300),
     body.contents?'CONFIRMED EXISTING MATERIAL DESCRIPTION: '+body.contents.slice(0,1200):'Only conceptual product visual; do not depict specific finished pages as factual samples.',
     body.label?'DESIGN IDEA: '+body.label:'Minimal elegant editorial composition.',
     'Avoid paragraphs, tiny illegible text, watermark, logos, real company names, faces, social proof, testimonials, claimed statistics, prices or guarantees.',
     'No competitor branding, no copyrighted character depictions. Use only generic invented graphical elements.',
-    'It is a visual mockup / conceptual illustration, not evidence that exact files or pages are included.'
+    'It is a visual mockup / conceptual illustration, not evidence that exact files or pages are included.',
+    'Use soft shadows and a consistent refined palette. No printed paragraphs or fake testimonials.'
   ].join('\n');
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),95000);
