@@ -60,7 +60,7 @@ export default function RemodelPage(){
       ownAds.map(a=>[a.hook,a.ad_copy].filter(Boolean).join('\n')).filter(Boolean).join('\n\n').slice(0,5000));
     setDifferentiation(restored?.differentiation||'');
     setActualContents(restored?.actualContents||'');
-    setCheckout(p.checkout_url);
+    setCheckout(restored?p.checkout_url:'');
   },[p,ownAds]);
   const html=useMemo(()=>{
     if(!p||!draft)return '';
@@ -70,7 +70,7 @@ export default function RemodelPage(){
     setDraft(prev=>prev?{...prev,[key]:value}:prev);
     setSuccess('');
   }
-  function changeLines(key:'benefits'|'includes'|'steps'|'secondPlanItems',value:string,limit:number){
+  function changeLines(key:'benefits'|'includes'|'steps'|'secondPlanItems'|'painPoints',value:string,limit:number){
     setDraft(prev=>prev?{...prev,[key]:splitLines(value,limit)}:prev);
     setSuccess('');
   }
@@ -134,6 +134,7 @@ export default function RemodelPage(){
         proofTitle:draft?.proofTitle||'O que dizem nossos clientes',
         bonusTitle:draft?.bonusTitle||'Bônus incluídos no pacote',
         pricingTitle:draft?.pricingTitle||'Escolha sua opção',
+        ownOfferPrice:draft?.ownOfferPrice||'',painPoints:draft?.painPoints||[],
         guaranteeText:draft?.guaranteeText||'',
         secondPlanName:draft?.secondPlanName||'',
         secondPlanPrice:draft?.secondPlanPrice||'',
@@ -457,6 +458,9 @@ export default function RemodelPage(){
         <summary>Blocos extras do modelo: depoimentos, bônus, planos e garantia</summary>
         <div style={{padding:16}}>
           <p className="micro">Estes blocos são opcionais. Eles aparecem na página publicada somente depois de você cadastrar informações verdadeiras e verificadas.</p>
+          <EditField label="Dores reais do público (uma por linha)" large
+            value={lines(draft.painPoints||[],4)}
+            onChange={v=>changeLines('painPoints',v,4)}/>
           <EditField label="Título dos depoimentos" value={draft.proofTitle||''} onChange={v=>change('proofTitle',v)}/>
           <div className="micro mt-3">DEPOIMENTOS REAIS — não gerar avaliações fictícias</div>
           {(draft.proofItems||[]).map((item,i)=><div className="panel mt-2" key={i} style={{padding:12}}>
@@ -491,6 +495,10 @@ export default function RemodelPage(){
           </button>
           <div style={{borderTop:'1px solid var(--border,#334155)',margin:'22px 0'}}/>
           <EditField label="Título dos planos/preços" value={draft.pricingTitle||''} onChange={v=>change('pricingTitle',v)}/>
+          <EditField label="PREÇO DO SEU PRODUTO (não é o preço do concorrente)"
+            value={draft.ownOfferPrice||''} onChange={v=>change('ownOfferPrice',v)}
+            placeholder="Ex.: R$ 19,90"/>
+
           <p className="micro">A opção principal usa o preço do cadastro do produto e o checkout configurado acima.
             Só ofereça uma segunda opção quando existir um segundo produto ou plano real.</p>
           <EditField label="Segundo plano (opcional)" value={draft.secondPlanName||''}
