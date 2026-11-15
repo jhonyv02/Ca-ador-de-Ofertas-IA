@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
 import Link from 'next/link';
-import {ArrowRight,BrainCircuit,ClipboardCheck,ExternalLink,LoaderCircle,ShieldAlert} from 'lucide-react';
+import {ArrowRight,BrainCircuit,ClipboardCheck,ExternalLink,LoaderCircle,ShieldAlert,Sparkles} from 'lucide-react';
 import {useWorkspace} from '@/components/workspace';
 import {PageHeading,Feedback,Load} from '@/components/ui';
 import {brl} from '@/lib/utils';
@@ -154,7 +154,7 @@ export default function WeeklyDirect(){
           <div className="micro">OFERTA SELECIONADA</div>
           <h3 style={{fontSize:18,marginTop:6}}>{champion.name}</h3>
           <p style={{fontSize:13,margin:'8px 0 0'}}>{report.report.reason_to_choose}</p>
-          <Link className="small-link mt-2" href={'/products/'+champion.id}>Abrir dossiê da oferta <ExternalLink size={14}/></Link>
+          <Link className="small-link mt-2" href={'/products/'+champion.id}>Abrir dossiê da oferta <ExternalLink size={14}/></Link><Link className="btn btn-primary mt-2" href={"/products/"+champion.id+"/remodelar"}><Sparkles size={15}/> Remodelar página de vendas</Link>
         </div>}
         <p style={{marginTop:15,fontSize:13}}>{report.report.diagnosis}</p>
         <div className="two-col">
@@ -249,7 +249,7 @@ export default function WeeklyDirect(){
             Com os custos cadastrados, CPA de equilíbrio: <strong>{brl(selected.gate.breakEvenCpa)}</strong>.
             Teto mais conservador (70%): <strong>{brl(selected.gate.cautiousCpa)}</strong>.
           </p>}
-          <Link href={'/products/'+selected.product.id} className="btn btn-ghost mt-2">Editar preço, custos e checkout <ArrowRight size={14}/></Link>
+          <Link href={'/products/'+selected.product.id} className="btn btn-ghost mt-2">Editar preço, custos e checkout <ArrowRight size={14}/></Link><Link href={"/products/"+selected.product.id+"/remodelar"} className="btn btn-primary mt-2"><Sparkles size={14}/> Remodelar página de vendas</Link>
         </>}
       </section>
       <section className="panel">
