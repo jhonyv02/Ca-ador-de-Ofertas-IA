@@ -11,6 +11,7 @@ import type {Product,Ad} from '@/lib/types';
 import type {DigitalRadar} from '@/lib/digital-radar';
 import {Creative} from '@/components/creative';
 import {firstAdWithImage,offerLibraryUrl,creativeStoragePaths} from '@/lib/library-links';
+import {normalizeOfferUrl,metaSearchUrlForWebsite} from '@/lib/meta-search';
 import styles from './radar.module.css';
 
 type Filter='all'|'priority'|'check'|'ads'|'testing';
@@ -30,6 +31,7 @@ function normalized(value:string){
 function OfferCard({product:p,radar,related}:{product:Product;radar:DigitalRadar;related:Ad[]}){
   const visual=firstAdWithImage(related);
   const library=offerLibraryUrl(p,related);
+  const siteSearch=metaSearchUrlForWebsite(p.landing_url);
   const country=p.country?.trim()||'';
   const market=!country?'🌍 Gringa':country==='Brasil'?'🇧🇷 Brasil':'🌍 '+country;
   return (
@@ -60,6 +62,7 @@ function OfferCard({product:p,radar,related}:{product:Product;radar:DigitalRadar
         <Link className={styles.secondary} href={'/products/'+p.id}><BookOpenCheck size={15}/> Ver análise</Link>
         <Link className={styles.primary} href={'/products/'+p.id+'/remodelar'}><Sparkles size={15}/> Criar versão própria</Link>
         {library&&<a className={styles.secondary+' '+styles.libraryAction} href={library} target="_blank" rel="noopener noreferrer"><ExternalLink size={15}/> Biblioteca</a>}
+        {siteSearch&&<a className={styles.secondary+' '+styles.libraryAction} href={siteSearch} target="_blank" rel="noopener noreferrer"><Search size={15}/> Pesquisar link na Meta</a>}
       </div>
       <p className={styles.cardFoot}>{radar.confidence}. A nota não confirma vendas, autorização de uso ou adequação jurídica.</p>
     </article>
@@ -117,8 +120,8 @@ export default function Products(){
   async function saveOffer(e:FormEvent){
     e.preventDefault();setFailure('');setFeedback('');
     if(saving)return;
-    const clean=safeHttpUrl(link);
-    if(!clean){setFailure('Cole um link válido começando com https:// ou http://.');return;}
+    const clean=normalizeOfferUrl(link);
+    if(!clean){setFailure('Informe um domínio válido, como tafeljoy.shop/de/. O https:// é opcional.');return;}
     const duplicate=products.find(p=>comparableUrl(p.landing_url)===comparableUrl(clean));
     if(duplicate){setFeedback('Essa página já está cadastrada. Abrindo o dossiê existente.');
       router.push('/products/'+duplicate.id);return;}
@@ -206,8 +209,8 @@ export default function Products(){
         <p>Não precisa preencher um formulário enorme. Salve uma página da gringa e complemente as informações depois.</p>
         <form className={styles.quickForm} onSubmit={e=>void saveOffer(e)}>
           <label className={styles.inputGroup}>Link da página de vendas *
-            <input className={styles.input} type="url" required value={link} onChange={e=>setLink(e.target.value)}
-              placeholder="https://site-do-produto.com/oferta" autoComplete="url"/>
+            <input className={styles.input} type="text" inputMode="url" required value={link} onChange={e=>setLink(e.target.value)}
+              placeholder="tafeljoy.shop/de/ (https:// opcional)" autoComplete="url"/>
           </label>
           <label className={styles.inputGroup}>Nome da oferta (opcional)
             <input className={styles.input} type="text" maxLength={150} value={name}

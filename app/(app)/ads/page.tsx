@@ -11,15 +11,12 @@ import { AdInspector } from '@/components/ad-inspector';
 import { shortDate } from '@/lib/utils';
 import {useLocale} from '@/components/locale';
 import {advertiserLibraryUrl,sameHttpUrl,offerLibraryUrl} from '@/lib/library-links';
-/** Pesquisa pública da Meta; não implica anúncio encontrado ou ativo. */
-function metaSearchUrl(name:string){
-  const params=new URLSearchParams({active_status:'active',ad_type:'all',country:'ALL',q:name,search_type:'keyword_unordered'});
-  return 'https://www.facebook.com/ads/library/?'+params.toString();
-}
+import {metaAdsLibraryUrl,metaSearchUrlForWebsite} from '@/lib/meta-search';
 export default function Ads(){
   const {products,ads,adsLoading,adsError,refresh}=useWorkspace();
   const {t}=useLocale();
   const [open,setOpen]=useState(false);const [recordProductId,setRecordProductId]=useState('');const [inspecting,setInspecting]=useState<Ad|null>(null);
+  const [websiteQuery,setWebsiteQuery]=useState('');
   const [search,setSearch]=useState('');const [platform,setPlatform]=useState('all');const [productId,setProductId]=useState('all');const [favorites,setFavorites]=useState(false);
   const filtered=useMemo(()=>ads.filter(a=>(!favorites||a.is_favorite)&&(platform==='all'||a.platform===platform)&&(productId==='all'||a.product_id===productId)&&(`${a.name} ${a.advertiser} ${a.hook} ${a.ad_copy} ${products.find(p=>p.id===a.product_id)?.name||''}`).toLowerCase().includes(search.toLowerCase())),[ads,search,platform,productId,favorites,products]);
   const referenceProducts=useMemo(()=>products.filter(p=>
@@ -27,9 +24,26 @@ export default function Ads(){
     (!search.trim()||[p.name,p.niche,p.country,p.promise].join(' ').toLowerCase().includes(search.trim().toLowerCase()))
   ).slice(0,12),[products,productId,search]);
   const hasFilters=Boolean(search.trim()||productId!=='all'||platform!=='all'||favorites);
+  const websiteLibraryUrl=metaSearchUrlForWebsite(websiteQuery);
+  const domainLibraryUrl=metaSearchUrlForWebsite(websiteQuery,'domain');
   function clearFilters(){setSearch('');setProductId('all');setPlatform('all');setFavorites(false);}
   function addAdForProduct(id=''){setRecordProductId(id);setOpen(true);}
   return <><PageHeading eyebrow={t("ads")} title={t("adsTitle")} description={t("adsDescription")} action={<button className="btn btn-primary" onClick={()=>addAdForProduct()}><Plus size={17}/>{t("newAd")}</button>}/>
+  <section className="panel" aria-label="Pesquisar domínio na Biblioteca de Anúncios da Meta" style={{marginBottom:16}}>
+    <div className="micro">PESQUISA DIRETA · META ADS LIBRARY</div>
+    <h2 style={{fontSize:18,margin:'6px 0'}}>Pesquisar anúncios pelo link da oferta</h2>
+    <p className="muted" style={{fontSize:13,marginBottom:10}}>Cole o site com ou sem https://. A Meta pesquisa o domínio e o caminho da página, sem o protocolo.</p>
+    <div className="flex wrap gap-2 center">
+      <input className="input" type="text" inputMode="url" aria-label="Link do site para pesquisar"
+        style={{flex:'1 1 240px',minWidth:0}} value={websiteQuery}
+        onChange={e=>setWebsiteQuery(e.target.value)} placeholder="tafeljoy.shop/de/"/>
+      {websiteLibraryUrl?<a className="btn btn-primary" href={websiteLibraryUrl} target="_blank" rel="noopener noreferrer">
+        Abrir na Biblioteca Meta <ExternalLink size={15}/></a>:<span className="micro">Informe um domínio válido, como tafeljoy.shop/de/.</span>}
+      {domainLibraryUrl&&domainLibraryUrl!==websiteLibraryUrl&&<a className="btn" href={domainLibraryUrl}
+        target="_blank" rel="noopener noreferrer">Buscar só domínio <Search size={14}/></a>}
+    </div>
+    <p className="micro mt-2">Pesquisa pública por termo. Não há confirmação automática de anúncios ativos.</p>
+  </section>
   <div className="toolbar"><div className="search-box"><Search size={16}/><input className="input" placeholder={t("search") + "..."} value={search} onChange={e=>setSearch(e.target.value)}/></div><select className="select" value={productId} onChange={e=>setProductId(e.target.value)}><option value="all">{t("products")}</option>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><select className="select" value={platform} onChange={e=>setPlatform(e.target.value)}><option value="all">{t("platform")}</option><option value="meta">Meta</option><option value="tiktok">TikTok</option><option value="google">Google</option><option value="youtube">YouTube</option><option value="other">Outra</option></select><button onClick={()=>setFavorites(!favorites)} className={`btn ${favorites?'btn-primary':'btn-ghost'}`}><Bookmark size={15}/>{t("favoriteOnly")}</button></div>
   {adsError&&<div className="panel" role="alert">
     <p>Não foi possível carregar os anúncios. {adsError}</p>
@@ -50,7 +64,8 @@ export default function Ads(){
       <div className="card-grid mt-3">
         {referenceProducts.map(p=>{
           const library=offerLibraryUrl(p,ads.filter(ad=>ad.product_id===p.id));
-          const searchUrl=metaSearchUrl(p.name);
+          const searchUrl=metaSearchUrlForWebsite(p.landing_url)||metaAdsLibraryUrl(p.name);
+          const onlyDomainUrl=metaSearchUrlForWebsite(p.landing_url,'domain');
           return <article key={p.id} className="panel" style={{padding:14}}>
             <span className="micro">{p.niche||'Nicho não informado'} · Pesquisa não verificada</span>
             <h3 style={{fontSize:15,margin:'8px 0'}}>{p.name}</h3>
@@ -58,6 +73,8 @@ export default function Ads(){
             <div className="flex wrap gap-2 mt-3">
               {library&&<a className="btn" href={library} target="_blank" rel="noopener noreferrer">Biblioteca do anunciante <ExternalLink size={13}/></a>}
               <a className="btn" href={searchUrl} target="_blank" rel="noopener noreferrer">Pesquisar na Meta <Search size={13}/></a>
+              {onlyDomainUrl&&onlyDomainUrl!==searchUrl&&<a className="btn" href={onlyDomainUrl}
+                target="_blank" rel="noopener noreferrer">Só domínio <Search size={13}/></a>}
               <button className="btn btn-primary" type="button" onClick={()=>addAdForProduct(p.id)}>Salvar anúncio <Plus size={13}/></button>
               <Link className="small-link" href={'/products/'+p.id}>Ver oferta <ArrowUpRight size={13}/></Link>
             </div>

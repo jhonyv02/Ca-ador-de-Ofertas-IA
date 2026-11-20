@@ -4,6 +4,7 @@ import type { Product, Ad, ProductStatus, ProductType, Platform, AdStatus } from
 import { useWorkspace } from '@/components/workspace';
 import { Field, Feedback } from '@/components/ui';
 import { safeHttpUrl } from '@/lib/utils';
+import {normalizeOfferUrl} from '@/lib/meta-search';
 import { LoaderCircle, Save, ScanSearch, AlertTriangle } from 'lucide-react';
 import { parseMetaLibraryUrl, parseCopiedMetaCardText, type MetaInspection } from '@/lib/meta-library';
 import {useLocale} from '@/components/locale';
@@ -30,10 +31,10 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
     try{
       const {data:{user},error:authError}=await supabase.auth.getUser();if(authError)throw authError;if(!user)throw new Error('Sua sessão terminou. Entre novamente.');
       if(!values.name.trim())throw new Error('Informe o nome do produto.');
-      for(const x of [values.landing_url,values.checkout_url,values.ad_library_url])if(x&&!safeHttpUrl(x))throw new Error('Informe URLs válidas iniciadas com https:// ou http://.');
+      for(const x of [values.landing_url,values.checkout_url,values.ad_library_url])if(x&&!normalizeOfferUrl(x))throw new Error('Informe um link válido, como tafeljoy.shop/de/. O https:// é opcional.');
       const data={user_id:user.id,name:values.name.trim(),niche:values.niche.trim(),product_type:values.product_type,country:values.country.trim(),language:values.language,currency:values.currency,
         sale_price:values.sale_price===''?null:Number(values.sale_price),fulfillment_cost:values.fulfillment_cost===''?null:Number(values.fulfillment_cost),extra_cost:values.extra_cost===''?null:Number(values.extra_cost),
-        landing_url:safeHttpUrl(values.landing_url),checkout_url:safeHttpUrl(values.checkout_url),ad_library_url:safeHttpUrl(values.ad_library_url),landing_copy:values.landing_copy.trim(),promise:values.promise.trim(),target_audience:values.target_audience.trim(),notes:[values.product_type==='digital'?formatTag(digitalFormat):'',values.notes.trim()].filter(Boolean).join('\n'),format:values.product_type==='digital'?digitalFormat:'',difficulty:normalizeDifficulty(difficulty),weekly_pick:weeklyPick,status:values.status};
+        landing_url:normalizeOfferUrl(values.landing_url),checkout_url:normalizeOfferUrl(values.checkout_url),ad_library_url:normalizeOfferUrl(values.ad_library_url),landing_copy:values.landing_copy.trim(),promise:values.promise.trim(),target_audience:values.target_audience.trim(),notes:[values.product_type==='digital'?formatTag(digitalFormat):'',values.notes.trim()].filter(Boolean).join('\n'),format:values.product_type==='digital'?digitalFormat:'',difficulty:normalizeDifficulty(difficulty),weekly_pick:weeklyPick,status:values.status};
       if([data.sale_price,data.fulfillment_cost,data.extra_cost].some(n=>n!==null&&(!Number.isFinite(n)||n<0)))throw new Error('Os custos e preços devem ser números positivos.');
       let id=product?.id;
       const persistProduct=async (payload:typeof data | Omit<typeof data,'ad_library_url'>)=>{
@@ -57,10 +58,10 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
       <input className="input" autoFocus required maxLength={150} value={values.name} onChange={e=>set('name',e.target.value)} placeholder={t('productPlaceholder')}/>
     </Field></div>
     <div className="full"><Field label={t('salesPage')}>
-      <input type="url" className="input" value={values.landing_url} onChange={e=>set('landing_url',e.target.value)} placeholder="https://..."/>
+      <input type="text" inputMode="url" className="input" value={values.landing_url} onChange={e=>set('landing_url',e.target.value)} placeholder="https://..."/>
     </Field></div>
     <div className="full"><Field label="Biblioteca de anúncios do concorrente" hint="Página do anunciante na Biblioteca da Meta. Se o banco ainda não tiver a coluna, o link fica nas anotações.">
-      <input type="url" className="input" value={values.ad_library_url} onChange={e=>set('ad_library_url',e.target.value)} placeholder="https://www.facebook.com/ads/library/?view_all_page_id=..."/>
+      <input type="text" inputMode="url" className="input" value={values.ad_library_url} onChange={e=>set('ad_library_url',e.target.value)} placeholder="https://www.facebook.com/ads/library/?view_all_page_id=..."/>
     </Field></div>
     <Field label={t('price')}>
       <input type="number" min="0" step="0.01" className="input" value={values.sale_price} onChange={e=>set('sale_price',e.target.value)} placeholder="47.00"/>
@@ -99,7 +100,7 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
           </select></Field>
           <Field label={t('cost')}><input type="number" min="0" step="0.01" className="input" value={values.fulfillment_cost} onChange={e=>set('fulfillment_cost',e.target.value)} placeholder="0.00"/></Field>
           <Field label={t('fees')}><input type="number" min="0" step="0.01" className="input" value={values.extra_cost} onChange={e=>set('extra_cost',e.target.value)} placeholder="0.00"/></Field>
-          <Field label={t('checkout')}><input type="url" className="input" value={values.checkout_url} onChange={e=>set('checkout_url',e.target.value)} placeholder="https://..."/></Field>
+          <Field label={t('checkout')}><input type="text" inputMode="url" className="input" value={values.checkout_url} onChange={e=>set('checkout_url',e.target.value)} placeholder="https://..."/></Field>
           <div className="full">{product&&readSalesDraft(product.landing_copy)?<div className="info-note"><strong>Página de vendas salva no editor visual.</strong> A copy original está protegida neste formulário. <Link className="small-link" href={"/products/"+product.id+"/remodelar"}>Abrir editor de página</Link></div>:<Field label={t('pageCopy')}><textarea className="textarea" maxLength={12000} rows={4} value={values.landing_copy} onChange={e=>set('landing_copy',e.target.value)}/></Field>}</div>
           <div className="full"><Field label={t('promise')}><textarea className="textarea" maxLength={2000} rows={2} value={values.promise} onChange={e=>set('promise',e.target.value)}/></Field></div>
           <div className="full"><Field label={t('audience')}><input className="input" maxLength={300} value={values.target_audience} onChange={e=>set('target_audience',e.target.value)}/></Field></div>
