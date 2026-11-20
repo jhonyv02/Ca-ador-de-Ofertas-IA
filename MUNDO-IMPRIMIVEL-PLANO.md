@@ -61,5 +61,9 @@ Um relógio não é garantia de conclusão. A meta operacional é verificar a fi
 ## Estado da primeira etapa no branch
 Esta branch restringe o radar principal e a recomendação semanal a produtos imprimíveis,
 interrompe a importação automática do catálogo histórico e adiciona testes para o filtro.
-**Não implementa ainda o worker que gera PDF/mockups, o publicador externo ou o envio Wiven.**
+Ela também implementa a ponte autenticada `POST /api/mundo-imprimivel`, com ações `draft`,
+`preview` e `approve`. Para preparar um draft, requer análise OpenAI recente com nota >=85
+e confiança média/alta. Configurar `MI_PUBLISH_TOKEN` e `MI_APPROVAL_TOKEN` na Hostinger.
+O publicador separado foi preparado como pacote PHP de instalação única, mas ainda **não está publicado**.
+**Não implementa ainda o worker que gera PDF/mockups, a fila agendada ou o cadastro Wiven.**
 Não interpretar esta primeira etapa como um pipeline já operante ou garantir entrega na segunda-feira.
