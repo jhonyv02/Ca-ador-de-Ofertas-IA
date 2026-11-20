@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.jviana.cacadordeofertas.android",
+      "sha256_cert_fingerprints": [
+        "E3:F8:F5:FB:44:5A:38:24:87:F9:F5:FF:B8:9D:D0:94:A1:6C:32:28:38:26:0C:43:15:D4:7E:FD:A4:60:E8:51"
+      ]
+    }
+  }
+]
