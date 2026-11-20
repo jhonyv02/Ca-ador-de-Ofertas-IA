@@ -2,6 +2,7 @@ import {NextResponse} from 'next/server';
 import {z} from 'zod';
 import {serverClient} from '@/lib/supabase/server';
 import {directReadiness} from '@/lib/direct-traffic';
+import {isPrintableOffer} from '@/lib/printable-eligibility';
 import type {Ad,Product,TestRun} from '@/lib/types';
 export const runtime='nodejs';
 const inputSchema=z.object({dailyBudget:z.number().finite().min(5).max(5000)}).strict();
@@ -68,16 +69,16 @@ export async function POST(req:Request){
   if(authErr||!user)return NextResponse.json({error:'Faça login para analisar as ofertas.'},{status:401});
   if(!underLimit(user.id))return NextResponse.json({error:'Limite de 3 análises a cada 15 minutos atingido.'},{status:429});
   const [pResult,aResult,tResult]=await Promise.all([
-    supabase.from('products').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(80),
+    supabase.from('products').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(500),
     supabase.from('ads').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(500),
     supabase.from('test_runs').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(400)
   ]);
   if(pResult.error||aResult.error||tResult.error)return NextResponse.json({
     error:'Não foi possível carregar produtos, anúncios ou testes. Verifique a conexão do Supabase.'},{status:500});
-  const products=(pResult.data||[]) as Product[];
+  const products=((pResult.data||[]) as Product[]).filter(isPrintableOffer);
   const ads=(aResult.data||[]) as Ad[];
   const runs=(tResult.data||[]) as TestRun[];
-  if(!products.length)return NextResponse.json({error:'Cadastre ou sincronize as ofertas em Produtos primeiro.'},{status:409});
+  if(!products.length)return NextResponse.json({error:'Nenhuma oferta imprimível elegível. Cadastre um kit para impressão antes de solicitar a decisão semanal.'},{status:409});
   const offers=products.map(p=>{
     const adList=ads.filter(a=>a.product_id===p.id);
     const tests=runs.filter(t=>t.product_id===p.id);
