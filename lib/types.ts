@@ -9,6 +9,8 @@ export interface Product {
   fulfillment_cost: number | null; extra_cost: number | null;
   landing_url: string; checkout_url: string; landing_copy: string; promise: string;
   target_audience: string; notes: string; status: ProductStatus;
+  format: string; difficulty: '' | 'facil' | 'moderada' | 'dificil';
+  weekly_pick: boolean; weekly_pick_at: string | null;
   created_at: string; updated_at: string;
 }
 export interface Ad {

@@ -7,12 +7,14 @@ import { PageHeading, Section, Feedback, Field } from '@/components/ui';
 import {useLocale} from '@/components/locale';
 import {LocalePicker,CurrencyPicker} from '@/components/global-options';
 import { downloadCsv } from '@/lib/utils';
+import {PushOptIn} from '@/components/push-opt-in';
 export default function Settings(){
  const {products,ads,snapshots,analyses,testRuns,supabase}=useWorkspace();
  const {t,defaultCurrency,setDefaultCurrency}=useLocale();
  const [message,setMessage]=useState('');
  async function passwordReset(){const {data:{user}}=await supabase.auth.getUser();if(!user?.email)return setMessage('Conta sem e-mail configurado.');const {error}=await supabase.auth.resetPasswordForEmail(user.email,{redirectTo:`${window.location.origin}/auth/callback?next=/update-password`});setMessage(error?error.message:'E-mail de recuperação enviado.');}
  return <><PageHeading eyebrow={t('settings')} title={t('settingsTitle')} description={t('savedInfo')}/>
+ <PushOptIn/>
  <Section title={t('language')+' / '+t('currency')}>
    <div className="advanced-grid" style={{padding:0}}>
      <Field label={t('language')}><LocalePicker/></Field>
@@ -22,7 +24,7 @@ export default function Settings(){
  </Section>
  <div className="two-col"><div>
  <Section title="Exportação de dados" description="Seus dados são seus. Baixe tudo em CSV (compatível com Excel).">
- <div className="flex wrap gap-2"><button className="btn" onClick={()=>downloadCsv('produtos.csv',['id','nome','nicho','tipo','preco','custo','taxas','status','pagina','promessa'],products.map(p=>[p.id,p.name,p.niche,p.product_type,p.sale_price,p.fulfillment_cost,p.extra_cost,p.status,p.landing_url,p.promise]))}><Download size={15}/> Produtos ({products.length})</button>
+ <div className="flex wrap gap-2"><button className="btn" onClick={()=>downloadCsv('produtos.csv',['id','nome','nicho','tipo','formato','facilidade','escolha_da_semana','preco','custo','taxas','status','pagina','promessa'],products.map(p=>[p.id,p.name,p.niche,p.product_type,p.format,p.difficulty,p.weekly_pick,p.sale_price,p.fulfillment_cost,p.extra_cost,p.status,p.landing_url,p.promise]))}><Download size={15}/> Produtos ({products.length})</button>
  <button className="btn" onClick={()=>downloadCsv('anuncios.csv',['id','product_id','nome','plataforma','anunciante','link','meta_library_id','copy','gancho','data_inicio','origem_inicio','status','origem_status','resultado_consulta','ultima_consulta','mensagem_consulta'],ads.map(a=>[a.id,a.product_id,a.name,a.platform,a.advertiser,a.ad_url,a.meta_library_id,a.ad_copy,a.hook,a.started_at,a.started_at_source,a.observed_active,a.status_source,a.link_check_result,a.last_checked_at,a.last_check_message]))}><Download size={15}/> Anúncios ({ads.length})</button>
  <button className="btn" onClick={()=>downloadCsv('verificacoes.csv',['ad_id','data','status','metodo','resultado','quantidade','observacoes'],snapshots.map(s=>[s.ad_id,s.checked_at,s.status,s.check_method,s.check_result,s.estimated_creatives,s.notes]))}><Download size={15}/> Histórico ({snapshots.length})</button>
  <button className="btn" onClick={()=>downloadCsv('analises.csv',['product_id','ad_id','data','score','confianca','resumo','recomendacao'],analyses.map(a=>[a.product_id,a.ad_id,a.created_at,a.score,a.confidence,a.summary,a.recommendation]))}><Download size={15}/> Análises ({analyses.length})</button>

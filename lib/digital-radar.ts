@@ -31,6 +31,35 @@ export const markets=[
   {code:'BR',country:'Brasil',language:'pt-BR',currency:'BRL',label:'Brasil · português'},
 ] as const;
 
+export const difficultyValues=['facil','moderada','dificil'] as const;
+export type Difficulty=(typeof difficultyValues)[number];
+export type EasePoints={points:number;max:number};
+export type OfferFacts={
+  formatId:string;formatLabel:string;difficulty:Difficulty|'';effort:string;
+};
+
+const effortNames:Record<Difficulty,string>={
+  facil:'Menor esforço estimado',
+  moderada:'Esforço moderado',
+  dificil:'Maior esforço estimado',
+};
+
+function finiteInRange(value:unknown,min:number,max:number):number|null {
+  const numeric=typeof value==='string'&&value.trim()!==''?Number(value):value;
+  if(typeof numeric!=='number'||!Number.isFinite(numeric))return null;
+  if(numeric<min||numeric>max)return null;
+  return numeric;
+}
+export function normalizeDifficulty(value:unknown):Difficulty|'' {
+  if(typeof value!=='string')return '';
+  const normalized=value.trim().toLowerCase();
+  return (difficultyValues as readonly string[]).includes(normalized)?normalized as Difficulty:'';
+}
+export function resolveFormatId(product:{format?:string|null;notes?:string|null}):string {
+  const column=(product.format||'').trim().toLowerCase();
+  if(digitalFormats.some(f=>f.id===column))return column;
+  return getDigitalFormat(product.notes||'');
+}
 export function getDigitalFormat(notes:string):string {
   const found=notes.match(/(?:^|\n)#formato-digital:([a-z]+)/i)?.[1]?.toLowerCase()||'';
   return digitalFormats.find(f=>f.id===found)?.id||'';
@@ -38,6 +67,57 @@ export function getDigitalFormat(notes:string):string {
 export function formatName(notes:string){
   const format=getDigitalFormat(notes);
   return digitalFormats.find(f=>f.id===format)?.label||'Formato não informado';
+}
+export function formatLabel(product:{format?:string|null;notes?:string|null}){
+  const format=resolveFormatId(product);
+  return digitalFormats.find(f=>f.id===format)?.label||'Formato não informado';
+}
+/** Pontos de facilidade gravados pelo assistente ou pela análise IA.
+ *  `ease` / `facilidade` usam a escala 0–30. `execution` acima de 15 também
+ *  entra nessa escala; até 15 segue o critério oficial da análise (0–15). */
+export function easeFromBreakdown(breakdown:unknown):EasePoints|null {
+  if(!breakdown||typeof breakdown!=='object')return null;
+  const record=breakdown as Record<string,unknown>;
+  for(const key of ['ease','facilidade','ease_score']){
+    const points=finiteInRange(record[key],0,30);
+    if(points!==null)return {points,max:30};
+  }
+  const execution=finiteInRange(record.execution,0,30);
+  if(execution===null)return null;
+  if(execution>15)return {points:execution,max:30};
+  return {points:execution,max:15};
+}
+export function levelFromPoints(points:number,max:number):Difficulty {
+  const ratio=max>0?points/max:0;
+  if(ratio>=2/3)return 'facil';
+  if(ratio>=0.4)return 'moderada';
+  return 'dificil';
+}
+export function effortLabel(level:Difficulty|'',points?:EasePoints|null,showPoints=false){
+  if(!level)return 'Não avaliado';
+  const name=effortNames[level];
+  if(showPoints&&points)return name+' · '+points.points+'/'+points.max;
+  return name;
+}
+export function offerFacts(
+  product:{format?:string|null;notes?:string|null;difficulty?:string|null},
+  analysis?:{breakdown?:unknown}|null,
+):OfferFacts {
+  const formatId=resolveFormatId(product);
+  const formatLabelText=digitalFormats.find(f=>f.id===formatId)?.label||'Formato não informado';
+  const column=normalizeDifficulty(product.difficulty);
+  const points=easeFromBreakdown(analysis?.breakdown);
+  if(column){
+    return {formatId,formatLabel:formatLabelText,difficulty:column,effort:effortLabel(column,points,!!points)};
+  }
+  if(points){
+    const level=levelFromPoints(points.points,points.max);
+    return {formatId,formatLabel:formatLabelText,difficulty:level,effort:effortLabel(level,points,true)};
+  }
+  const preset=digitalFormats.find(f=>f.id===formatId);
+  if(!preset)return {formatId,formatLabel:formatLabelText,difficulty:'',effort:'Não avaliado'};
+  const level:Difficulty=preset.ease>=18?'facil':preset.ease>=14?'moderada':'dificil';
+  return {formatId,formatLabel:formatLabelText,difficulty:level,effort:effortLabel(level)};
 }
 export function formatTag(format:string){
   return digitalFormats.some(f=>f.id===format)?'#formato-digital:'+format:'';
@@ -62,8 +142,9 @@ export function comparableUrl(value:string){
 
 export type DigitalRadar={score:number;label:string;next:string;confidence:string;activeVerified:number;
   clues:string[];hasEvidence:boolean;effort:string};
-export function digitalRadar(product:Product,ads:Ad[]):DigitalRadar {
-  const f=digitalFormats.find(x=>x.id===getDigitalFormat(product.notes));
+export function digitalRadar(product:Product,ads:Ad[],analysis?:{breakdown?:unknown}|null):DigitalRadar {
+  const facts=offerFacts(product,analysis);
+  const f=digitalFormats.find(x=>x.id===facts.formatId);
   const withMetaId=ads.filter(a=>!!a.meta_library_id);
   const verified=ads.filter(a=>a.observed_active==='active'&&
     a.status_source==='public_page'&&a.link_check_result==='verified');
@@ -81,8 +162,7 @@ export function digitalRadar(product:Product,ads:Ad[]):DigitalRadar {
     (f?.ease||0);
   // Potencial de execução é uma aproximação pelo formato, não valida propriedade,
   // existência do entregável, desempenho financeiro ou autorização de uso.
-  const effort=!f?'Não avaliado':f.ease>=18?'Menor esforço estimado':
-    f.ease>=14?'Esforço moderado':'Maior esforço estimado';
+  const effort=facts.effort;
   const next=!product.landing_url?'Adicionar a página concorrente':
     !f?'Informar o formato do material':
     !product.niche?'Escolher o nicho':

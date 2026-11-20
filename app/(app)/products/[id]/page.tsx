@@ -12,6 +12,8 @@ import { Creative } from '@/components/creative';
 import { PageHeading, Section, Modal, Empty, Load, StatusPill, ScoreRing, Feedback } from '@/components/ui';
 import { opportunityScore, brl, shortDate, adDays } from '@/lib/utils';
 import { chatOffers, metaSearchLinks } from '@/lib/chatgpt-offers';
+import { offerFacts } from '@/lib/digital-radar';
+import { dbErrorMessage } from '@/lib/db-error';
 export default function ProductDetail(){
   const {id}=useParams<{id:string}>();const router=useRouter();const {products,ads,loading,supabase,refresh,latestAnalysis,testRuns}=useWorkspace();
   const [edit,setEdit]=useState(false);const [addAd,setAddAd]=useState(false);const [inspect,setInspect]=useState<Ad|null>(null);const [error,setError]=useState('');
@@ -28,14 +30,22 @@ export default function ProductDetail(){
   },[product?.notes,supabase]);const curated=product?chatOffers.find(o=>product.notes?.includes('#chatgpt:'+o.key)||product.notes?.includes('#pesquisa-meta-v2:'+o.key)||o.name===product.name):undefined;const productAds=ads.filter(a=>a.product_id===id);const analysis=latestAnalysis(id);const score=product?opportunityScore(product,productAds,analysis):null;
   if(loading)return <Load/>;
   if(!product)return <><PageHeading title="Produto não encontrado" description="Esse produto pode ter sido excluído ou você não tem acesso a ele."/><Link href="/products" className="btn">Voltar à lista</Link></>;
+  const facts=offerFacts(product,analysis);
   const costsKnown=product.fulfillment_cost!==null&&product.extra_cost!==null;
   const contribution=product.sale_price!==null&&costsKnown?product.sale_price-product.fulfillment_cost!-product.extra_cost!:null;
   async function remove(){if(!confirm(`Excluir ${product?.name} e TODOS os seus anúncios e análises?`))return;const paths=productAds.map(a=>a.creative_path).filter((x):x is string=>!!x);const {error}=await supabase.from('products').delete().eq('id',id);if(error){setError(error.message);return;}if(paths.length)await supabase.storage.from('creatives').remove(paths);await refresh();router.push('/products');}
+  async function toggleWeeklyPick(){
+    if(!product)return;
+    const {error:saveError}=await supabase.from('products').update({weekly_pick:!product.weekly_pick}).eq('id',product.id);
+    if(saveError){setError(dbErrorMessage(saveError,'Não foi possível marcar a escolha da semana'));return;}
+    setError('');
+    await refresh();
+  }
   return <>
   <div className="flex gap-2 center mb-2"><Link href="/products" className="small-link"><ArrowLeft size={15}/> Todos os produtos</Link></div>
-  <PageHeading eyebrow="DOSSIÊ DA OFERTA" title={product.name} description={product.niche||'Produto em pesquisa'} action={<><Link className="btn btn-primary" href={"/products/"+id+"/remodelar"}><Sparkles size={16}/> Criar página com IA + mockups</Link><button className="btn" onClick={()=>setEdit(true)}><Edit size={16}/> Editar</button><button className="btn btn-danger" onClick={remove}><Trash2 size={16}/> Excluir</button></>}/>
+  <PageHeading eyebrow="DOSSIÊ DA OFERTA" title={product.name} description={product.niche||'Produto em pesquisa'} action={<><button className="btn" onClick={()=>void toggleWeeklyPick()}>{product.weekly_pick?'Remover escolha da semana':'Marcar escolha da semana'}</button><Link className="btn btn-primary" href={"/products/"+id+"/remodelar"}><Sparkles size={16}/> Criar página com IA + mockups</Link><button className="btn" onClick={()=>setEdit(true)}><Edit size={16}/> Editar</button><button className="btn btn-danger" onClick={remove}><Trash2 size={16}/> Excluir</button></>}/>
   {error&&<div className="mb-2"><Feedback type="error">{error}</Feedback></div>}
-  <div className="detail-meta"><StatusPill value={product.status}/><span className="card-tag">{product.product_type}</span><span className="card-tag">{product.country}</span><span className="card-tag">Criado em {shortDate(product.created_at)}</span></div>
+  <div className="detail-meta"><StatusPill value={product.status}/>{product.weekly_pick&&<span className="pill pill-week">Escolha da semana</span>}<span className="card-tag">{product.product_type}</span><span className="card-tag">{facts.formatLabel}</span><span className="card-tag">Facilidade: {facts.effort}</span><span className="card-tag">{product.country}</span><span className="card-tag">Criado em {shortDate(product.created_at)}</span></div>
   <div className="stats-grid"><div className="stat"><div><div className="stat-label">Anúncios coletados</div><div className="stat-value">{productAds.length}</div><div className="stat-note">Evidências documentadas</div></div><div className="stat-icon"><ImagePlus size={20}/></div></div><div className="stat"><div><div className="stat-label">Preço de venda</div><div className="stat-value" style={{fontSize:22}}>{product.sale_price===null?'—':brl(product.sale_price,product.currency)}</div><div className="stat-note">Valor informado por você</div></div><div className="stat-icon"><Wallet size={20}/></div></div><div className="stat"><div><div className="stat-label">Teto de CPA estimado</div><div className="stat-value" style={{fontSize:22}}>{contribution===null?'—':brl(Math.max(0,contribution),product.currency)}</div><div className="stat-note">{contribution===null?"Informe os custos para calcular":"Preço - custos, antes de outros fixos"}</div></div><div className="stat-icon"><Flame size={20}/></div></div><div className="stat"><div><div className="stat-label">Score da pesquisa</div><div className="stat-value">{score?.score||0}<small>/100</small></div><div className="stat-note">{score?.confidence}</div></div><ScoreRing value={score?.score||0} size="sm"/></div></div>
   <div className="two-col"><div>
     <Section title="Diagnóstico da oferta" description="A IA considera os dados preenchidos e as copies, não navega nos links por conta própria." action={<AnalyzeButton productId={id}/>}>{analysis?<AnalysisReport analysis={analysis}/>:<div className="info-note">Ainda não existe relatório. Cadastre a promessa, preço, público e alguns anúncios; depois clique em "Analisar produto com IA". Sem a chave OPENAI_API_KEY, você continua com o score heurístico acima.</div>}{!analysis&&score?.parts&&<div className="mt-3">{score.parts.map(part=><div className="breakdown-item" key={part.label}><div className="breakdown-label"><span>{part.label}</span><span>{part.points}/{part.max}</span></div><div className="bar-track"><div className="bar-fill" style={{width:`${100*part.points/part.max}%`}}/></div></div>)}</div>}</Section>

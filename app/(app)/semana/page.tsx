@@ -262,7 +262,7 @@ export default function WeeklyDirect(){
         <div className="table-wrap mt-2"><table className="data-table">
           <thead><tr><th>Oferta</th><th>Mercado</th><th>Preço</th><th>Evidências</th><th>Status</th></tr></thead>
           <tbody>{ranked.map(({product,gate})=><tr key={product.id}>
-            <td><Link href={'/products/'+product.id}>{product.name}</Link></td>
+            <td><Link href={'/products/'+product.id}>{product.name}</Link>{product.weekly_pick&&<> <span className="pill pill-week">Escolha da semana</span></>}</td>
             <td>{product.country} · {product.currency}</td>
             <td>{product.sale_price===null?'Não confirmado':brl(product.sale_price,product.currency)}</td>
             <td>{gate.score}/100</td>

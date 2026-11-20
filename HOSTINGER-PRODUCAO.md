@@ -35,9 +35,15 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_SUA_CHAVE
 NEXT_PUBLIC_SITE_URL=https://SEU-DOMINIO.com
 OPENAI_API_KEY=COLE_SOMENTE_NA_HOSTINGER
 OPENAI_MODEL=gpt-4.1-mini
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:seu-email@exemplo.com
+PUSH_WEBHOOK_SECRET=
+SUPABASE_SERVICE_ROLE_KEY=
 ```
 
 - `OPENAI_API_KEY` é opcional para cadastrar e salvar ofertas; é necessária para os botões **Analisar com IA**.
+- As cinco variáveis de notificação (`VAPID_*`, `PUSH_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`) ficam só no servidor. O passo a passo, o SQL e o uso no celular estão em `NOTIFICACOES.md`. Nunca use a service role com prefixo `NEXT_PUBLIC_`.
 - `NEXT_PUBLIC_*` ficam embutidas no bundle na etapa de **build**: se você mudar alguma, execute **Redeploy** na Hostinger (apenas reiniciar não basta).
 - `OPENAI_API_KEY` jamais deve ser colocada em `NEXT_PUBLIC_*` ou comitada no GitHub.
 - Insira os valores no painel; **não publique seu arquivo `.env.local`**.

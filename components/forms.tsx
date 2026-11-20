@@ -11,7 +11,7 @@ import {readSalesDraft} from '@/lib/sales-page';
 import Link from 'next/link';
 import {CurrencyPicker,MarketLanguagePicker} from '@/components/global-options';
 import {dbErrorMessage} from '@/lib/db-error';
-import {digitalFormats,formatTag,getDigitalFormat} from '@/lib/digital-radar';
+import {difficultyValues,digitalFormats,formatTag,normalizeDifficulty,resolveFormatId} from '@/lib/digital-radar';
 const blankProduct={name:'',niche:'',product_type:'digital' as ProductType,country:'Brasil',language:'pt-BR',currency:'BRL',sale_price:'',fulfillment_cost:'',extra_cost:'',landing_url:'',checkout_url:'',landing_copy:'',promise:'',target_audience:'',notes:'',status:'researching' as ProductStatus};
 export function ProductForm({product,onComplete,onCancel}:{product?:Product;onComplete:(id:string)=>void;onCancel:()=>void}) {
   const {supabase,refresh}=useWorkspace();
@@ -20,7 +20,9 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
     ...product,notes:product.notes.replace(/(?:^|\n)#formato-digital:[a-z]+(?=\n|$)/gi,'').trim(),
     sale_price:product.sale_price?.toString()||'',fulfillment_cost:product.fulfillment_cost?.toString()||'',extra_cost:product.extra_cost?.toString()||''
   }:{currency:defaultCurrency})});
-  const [digitalFormat,setDigitalFormat]=useState(product?getDigitalFormat(product.notes):'');
+  const [digitalFormat,setDigitalFormat]=useState(product?resolveFormatId(product):'');
+  const [difficulty,setDifficulty]=useState(product?normalizeDifficulty(product.difficulty):'');
+  const [weeklyPick,setWeeklyPick]=useState(!!product?.weekly_pick);
   const [saving,setSaving]=useState(false);const [error,setError]=useState('');
   const set=(key:string,val:string)=>setValues(prev=>({...prev,[key]:val}));
   async function submit(e:React.FormEvent){e.preventDefault();setSaving(true);setError('');
@@ -30,7 +32,7 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
       for(const x of [values.landing_url,values.checkout_url])if(x&&!safeHttpUrl(x))throw new Error('Informe URLs válidas iniciadas com https:// ou http://.');
       const data={user_id:user.id,name:values.name.trim(),niche:values.niche.trim(),product_type:values.product_type,country:values.country.trim(),language:values.language,currency:values.currency,
         sale_price:values.sale_price===''?null:Number(values.sale_price),fulfillment_cost:values.fulfillment_cost===''?null:Number(values.fulfillment_cost),extra_cost:values.extra_cost===''?null:Number(values.extra_cost),
-        landing_url:safeHttpUrl(values.landing_url),checkout_url:safeHttpUrl(values.checkout_url),landing_copy:values.landing_copy.trim(),promise:values.promise.trim(),target_audience:values.target_audience.trim(),notes:[values.product_type==='digital'?formatTag(digitalFormat):'',values.notes.trim()].filter(Boolean).join('\n'),status:values.status};
+        landing_url:safeHttpUrl(values.landing_url),checkout_url:safeHttpUrl(values.checkout_url),landing_copy:values.landing_copy.trim(),promise:values.promise.trim(),target_audience:values.target_audience.trim(),notes:[values.product_type==='digital'?formatTag(digitalFormat):'',values.notes.trim()].filter(Boolean).join('\n'),format:values.product_type==='digital'?digitalFormat:'',difficulty:normalizeDifficulty(difficulty),weekly_pick:weeklyPick,status:values.status};
       if([data.sale_price,data.fulfillment_cost,data.extra_cost].some(n=>n!==null&&(!Number.isFinite(n)||n<0)))throw new Error('Os custos e preços devem ser números positivos.');
       let id=product?.id;
       if(product){const {error}=await supabase.from('products').update(data).eq('id',product.id);if(error)throw error;}
@@ -58,6 +60,12 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
           {digitalFormats.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
         </select>
       </Field>
+      <Field label="Facilidade" hint="Se ficar em branco, o card usa os pontos de facilidade da análise (0 a 30).">
+        <select className="input" value={difficulty} onChange={e=>setDifficulty(normalizeDifficulty(e.target.value))}>
+          <option value="">Usar a análise ou o formato</option>
+          {difficultyValues.map(value=><option key={value} value={value}>{value==='facil'?'Menor esforço':value==='moderada'?'Esforço moderado':'Maior esforço'}</option>)}
+        </select>
+      </Field>
     </div>}
 
 
@@ -83,6 +91,10 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
           <div className="full"><Field label={t('promise')}><textarea className="textarea" maxLength={2000} rows={2} value={values.promise} onChange={e=>set('promise',e.target.value)}/></Field></div>
           <div className="full"><Field label={t('audience')}><input className="input" maxLength={300} value={values.target_audience} onChange={e=>set('target_audience',e.target.value)}/></Field></div>
           <div className="full"><Field label={t('notes')}><textarea className="textarea" maxLength={5000} value={values.notes} onChange={e=>set('notes',e.target.value)}/></Field></div>
+          <div className="full"><label className="field" style={{flexDirection:'row',alignItems:'flex-start',gap:10}}>
+            <input type="checkbox" checked={weeklyPick} onChange={e=>setWeeklyPick(e.target.checked)} style={{marginTop:2}}/>
+            <span>Escolha da semana<small style={{display:'block'}}>Marca esta oferta como prioridade para lançar. As outras deixam de ser a escolha e os aparelhos inscritos recebem um aviso.</small></span>
+          </label></div>
         </div>
       </details>
     </div>

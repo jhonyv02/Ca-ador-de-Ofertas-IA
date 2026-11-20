@@ -6,7 +6,7 @@ import {useRouter} from 'next/navigation';
 import {useWorkspace} from '@/components/workspace';
 import {Load,Modal} from '@/components/ui';
 import {downloadCsv,brl,safeHttpUrl} from '@/lib/utils';
-import {comparableUrl,digitalFormats,digitalNiches,digitalRadar,formatName,formatTag,getDigitalFormat,markets,metaDiscoveryUrl} from '@/lib/digital-radar';
+import {comparableUrl,digitalFormats,digitalNiches,digitalRadar,formatLabel,formatTag,resolveFormatId,markets,metaDiscoveryUrl} from '@/lib/digital-radar';
 import type {Product,Ad} from '@/lib/types';
 import type {DigitalRadar} from '@/lib/digital-radar';
 import styles from './radar.module.css';
@@ -27,15 +27,16 @@ function normalized(value:string){
 
 function OfferCard({product:p,radar,related}:{product:Product;radar:DigitalRadar;related:Ad[]}){
   return (
-    <article className={styles.card}>
+    <article className={styles.card+(p.weekly_pick?' '+styles.cardPick:'')}>
       <div className={styles.cardHead}>
+        {p.weekly_pick&&<span className={styles.chip+' '+styles.chipPick}>Escolha da semana</span>}
         <span className={styles.chip}>{p.country==='Brasil'?'🇧🇷 Brasil':'🌍 Gringa'} · Digital</span>
         <span className={styles.chip+' '+(radar.score>=63?styles.chipGood:styles.chipNeutral)}>{radar.label}</span>
       </div>
       <h3>{p.name}</h3>
       <p className={styles.cardDescription}>{p.promise||p.niche||'Ainda sem descrição da promessa'}</p>
       <div className={styles.cardFacts}>
-        <div><span>Formato</span><strong>{formatName(p.notes)}</strong></div>
+        <div><span>Formato</span><strong>{formatLabel(p)}</strong></div>
         <div><span>Preço de referência</span><strong>{p.sale_price!==null?brl(p.sale_price,p.currency):'Não informado'}</strong></div>
         <div><span>Anúncios salvos</span><strong>{related.length}</strong></div>
         <div><span>Facilidade</span><strong>{radar.effort}</strong></div>
@@ -59,7 +60,7 @@ function OfferCard({product:p,radar,related}:{product:Product;radar:DigitalRadar
 
 export default function Products(){
   const router=useRouter();
-  const {products,ads,loading,error,supabase,refresh}=useWorkspace();
+  const {products,ads,analyses,loading,error,supabase,refresh}=useWorkspace();
   const [link,setLink]=useState('');
   const [name,setName]=useState('');
   const [niche,setNiche]=useState('');
@@ -82,14 +83,16 @@ export default function Products(){
   const digital=useMemo(()=>products.filter(p=>p.product_type==='digital'),[products]);
   const offers=useMemo(()=>digital.map(p=>{
     const related=ads.filter(ad=>ad.product_id===p.id);
-    return {product:p,ads:related,radar:digitalRadar(p,related)};
-  }).sort((a,b)=>b.radar.score-a.radar.score||
-    new Date(b.product.created_at).getTime()-new Date(a.product.created_at).getTime()),[digital,ads]);
+    const analysis=analyses.find(a=>a.product_id===p.id&&a.kind==='product');
+    return {product:p,ads:related,radar:digitalRadar(p,related,analysis)};
+  }).sort((a,b)=>Number(b.product.weekly_pick)-Number(a.product.weekly_pick)||
+    b.radar.score-a.radar.score||
+    new Date(b.product.created_at).getTime()-new Date(a.product.created_at).getTime()),[digital,ads,analyses]);
   const filtered=useMemo(()=>offers.filter(o=>{
     const p=o.product;
     const query=normalized(search.trim());
     const matchSearch=!query||normalized([p.name,p.niche,p.country,p.promise,p.notes].join(' ')).includes(query);
-    const matchFormat=formatFilter==='all'||getDigitalFormat(p.notes)===formatFilter;
+    const matchFormat=formatFilter==='all'||resolveFormatId(p)===formatFilter;
     const matchCountry=countryFilter==='all'||p.country===countryFilter;
     const matchStage=filter==='all'||
       (filter==='priority'&&o.radar.score>=63)||
@@ -128,6 +131,7 @@ export default function Products(){
         fulfillment_cost:null,extra_cost:null,
         landing_url:clean,checkout_url:'',landing_copy:'',promise:'',target_audience:'',
         notes:[formatTag(format),'Fonte: página de referência cadastrada manualmente.','Validação de anúncios e demanda pendente.'].filter(Boolean).join('\n'),
+        format:format||'',difficulty:'',weekly_pick:false,
         status:'researching'
       };
       const {data,error:saveError}=await supabase.from('products').insert(value).select('id').single();
