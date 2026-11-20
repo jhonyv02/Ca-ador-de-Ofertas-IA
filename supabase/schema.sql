@@ -22,6 +22,7 @@ create table if not exists public.products (
   promise text not null default '',
   target_audience text not null default '',
   notes text not null default '',
+  ad_library_url text not null default '',
   status text not null default 'researching' check (status in ('researching','ready','testing','winning','discarded')),
   format text not null default '',
   difficulty text not null default '',
@@ -39,8 +40,11 @@ create table if not exists public.ads (
   name text not null check (char_length(name) between 1 and 150),
   platform text not null default 'meta' check (platform in ('meta','tiktok','google','youtube','other')),
   advertiser text not null default '',
+  advertiser_page_id text,
+  advertiser_library_url text not null default '',
   ad_url text not null default '',
   creative_path text,
+  creative_thumb_path text,
   creative_type text check (creative_type in ('image','video')),
   ad_copy text not null default '',
   hook text not null default '',
@@ -445,3 +449,18 @@ from information_schema.tables
 where table_schema='public'
   and table_name in ('products','ads','ad_snapshots','analyses','test_runs','push_subscriptions')
 order by table_name;
+
+-- Biblioteca de anúncios da Meta (o mesmo script idempotente está em supabase/upgrade-biblioteca-anuncios.sql).
+alter table public.ads
+  add column if not exists advertiser_page_id text,
+  add column if not exists advertiser_library_url text not null default '',
+  add column if not exists creative_thumb_path text;
+alter table public.products
+  add column if not exists ad_library_url text not null default '';
+update public.ads set advertiser_library_url = substring(notes from 'Biblioteca do anunciante: (\S+)')
+ where advertiser_library_url = '' and notes like '%Biblioteca do anunciante:%';
+update public.products p set ad_library_url = coalesce((select a.advertiser_library_url from public.ads a
+ where a.product_id = p.id and a.advertiser_library_url <> '' order by a.created_at limit 1), '')
+ where ad_library_url = '';
+
+notify pgrst, 'reload schema';

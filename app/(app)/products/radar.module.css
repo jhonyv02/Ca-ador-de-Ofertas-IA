@@ -77,6 +77,9 @@
 .nextBox strong{display:block;font-size:12px;line-height:1.4}
 .cardActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:auto}
 .cardActions a{text-align:center;white-space:normal}
+.libraryAction{grid-column:1 / -1}
+.cardCreative{margin:0}
+.cardCreative :global(.ad-cover){height:168px}
 .cardFoot{color:#859db2;font-size:10px;margin:0;line-height:1.5}
 .empty{text-align:center;border:1px dashed #436077;padding:34px 16px;border-radius:12px;background:#122236}
 .empty svg{color:#75e7bb}

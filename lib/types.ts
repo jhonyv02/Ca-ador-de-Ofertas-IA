@@ -8,15 +8,16 @@ export interface Product {
   country: string; language: string; currency: string; sale_price: number | null;
   fulfillment_cost: number | null; extra_cost: number | null;
   landing_url: string; checkout_url: string; landing_copy: string; promise: string;
-  target_audience: string; notes: string; status: ProductStatus;
+  target_audience: string; notes: string; ad_library_url?: string; status: ProductStatus;
   format: string; difficulty: '' | 'facil' | 'moderada' | 'dificil';
   weekly_pick: boolean; weekly_pick_at: string | null;
   created_at: string; updated_at: string;
 }
 export interface Ad {
   id: string; user_id: string; product_id: string; name: string;
-  platform: Platform; advertiser: string; ad_url: string;
-  creative_path: string | null; creative_type: 'image' | 'video' | null;
+  platform: Platform; advertiser: string; advertiser_page_id?: string | null;
+  advertiser_library_url?: string; ad_url: string;
+  creative_path: string | null; creative_thumb_path?: string | null; creative_type: 'image' | 'video' | null;
   ad_copy: string; hook: string; cta: string; notes: string;
   first_seen_at: string | null; started_at: string | null;
   observed_active: AdStatus; is_favorite: boolean;

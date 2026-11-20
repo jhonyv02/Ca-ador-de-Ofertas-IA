@@ -10,14 +10,15 @@ import {useLocale} from '@/components/locale';
 import {readSalesDraft} from '@/lib/sales-page';
 import Link from 'next/link';
 import {CurrencyPicker,MarketLanguagePicker} from '@/components/global-options';
-import {dbErrorMessage} from '@/lib/db-error';
+import {dbErrorMessage,isMissingColumnError} from '@/lib/db-error';
+import {advertiserLibraryUrl,libraryUrlFromNotes,notesWithAdvertiserLibrary,notesWithoutAdvertiserLibrary} from '@/lib/library-links';
 import {difficultyValues,digitalFormats,formatTag,normalizeDifficulty,resolveFormatId} from '@/lib/digital-radar';
-const blankProduct={name:'',niche:'',product_type:'digital' as ProductType,country:'Brasil',language:'pt-BR',currency:'BRL',sale_price:'',fulfillment_cost:'',extra_cost:'',landing_url:'',checkout_url:'',landing_copy:'',promise:'',target_audience:'',notes:'',status:'researching' as ProductStatus};
+const blankProduct={name:'',niche:'',product_type:'digital' as ProductType,country:'Brasil',language:'pt-BR',currency:'BRL',sale_price:'',fulfillment_cost:'',extra_cost:'',landing_url:'',checkout_url:'',ad_library_url:'',landing_copy:'',promise:'',target_audience:'',notes:'',status:'researching' as ProductStatus};
 export function ProductForm({product,onComplete,onCancel}:{product?:Product;onComplete:(id:string)=>void;onCancel:()=>void}) {
   const {supabase,refresh}=useWorkspace();
   const {t,defaultCurrency}=useLocale();
   const [values,setValues]=useState({...blankProduct,...(product?{
-    ...product,notes:product.notes.replace(/(?:^|\n)#formato-digital:[a-z]+(?=\n|$)/gi,'').trim(),
+    ...product,ad_library_url:product.ad_library_url||libraryUrlFromNotes(product.notes),notes:notesWithoutAdvertiserLibrary(product.notes.replace(/(?:^|\n)#formato-digital:[a-z]+(?=\n|$)/gi,'').trim()),
     sale_price:product.sale_price?.toString()||'',fulfillment_cost:product.fulfillment_cost?.toString()||'',extra_cost:product.extra_cost?.toString()||''
   }:{currency:defaultCurrency})});
   const [digitalFormat,setDigitalFormat]=useState(product?resolveFormatId(product):'');
@@ -29,14 +30,23 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
     try{
       const {data:{user},error:authError}=await supabase.auth.getUser();if(authError)throw authError;if(!user)throw new Error('Sua sessão terminou. Entre novamente.');
       if(!values.name.trim())throw new Error('Informe o nome do produto.');
-      for(const x of [values.landing_url,values.checkout_url])if(x&&!safeHttpUrl(x))throw new Error('Informe URLs válidas iniciadas com https:// ou http://.');
+      for(const x of [values.landing_url,values.checkout_url,values.ad_library_url])if(x&&!safeHttpUrl(x))throw new Error('Informe URLs válidas iniciadas com https:// ou http://.');
       const data={user_id:user.id,name:values.name.trim(),niche:values.niche.trim(),product_type:values.product_type,country:values.country.trim(),language:values.language,currency:values.currency,
         sale_price:values.sale_price===''?null:Number(values.sale_price),fulfillment_cost:values.fulfillment_cost===''?null:Number(values.fulfillment_cost),extra_cost:values.extra_cost===''?null:Number(values.extra_cost),
-        landing_url:safeHttpUrl(values.landing_url),checkout_url:safeHttpUrl(values.checkout_url),landing_copy:values.landing_copy.trim(),promise:values.promise.trim(),target_audience:values.target_audience.trim(),notes:[values.product_type==='digital'?formatTag(digitalFormat):'',values.notes.trim()].filter(Boolean).join('\n'),format:values.product_type==='digital'?digitalFormat:'',difficulty:normalizeDifficulty(difficulty),weekly_pick:weeklyPick,status:values.status};
+        landing_url:safeHttpUrl(values.landing_url),checkout_url:safeHttpUrl(values.checkout_url),ad_library_url:safeHttpUrl(values.ad_library_url),landing_copy:values.landing_copy.trim(),promise:values.promise.trim(),target_audience:values.target_audience.trim(),notes:[values.product_type==='digital'?formatTag(digitalFormat):'',values.notes.trim()].filter(Boolean).join('\n'),format:values.product_type==='digital'?digitalFormat:'',difficulty:normalizeDifficulty(difficulty),weekly_pick:weeklyPick,status:values.status};
       if([data.sale_price,data.fulfillment_cost,data.extra_cost].some(n=>n!==null&&(!Number.isFinite(n)||n<0)))throw new Error('Os custos e preços devem ser números positivos.');
       let id=product?.id;
-      if(product){const {error}=await supabase.from('products').update(data).eq('id',product.id);if(error)throw error;}
-      else{const {data:created,error}=await supabase.from('products').insert(data).select('id').single();if(error)throw error;id=created.id;}
+      const persistProduct=async (payload:typeof data | Omit<typeof data,'ad_library_url'>)=>{
+        if(product)return supabase.from('products').update(payload).eq('id',product.id);
+        return supabase.from('products').insert(payload).select('id').single();
+      };
+      let saved=await persistProduct(data);
+      if(saved.error&&isMissingColumnError(saved.error)){
+        const {ad_library_url:libraryUrl,...withoutLibrary}=data;
+        saved=await persistProduct({...withoutLibrary,notes:notesWithAdvertiserLibrary(withoutLibrary.notes,libraryUrl)});
+      }
+      if(saved.error)throw saved.error;
+      if(!product&&saved.data&&'id' in saved.data)id=saved.data.id;
       await refresh();onComplete(id!);
     }catch(err){setError(dbErrorMessage(err,'Não foi possível salvar o produto'));}
     finally{setSaving(false);}
@@ -48,6 +58,9 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
     </Field></div>
     <div className="full"><Field label={t('salesPage')}>
       <input type="url" className="input" value={values.landing_url} onChange={e=>set('landing_url',e.target.value)} placeholder="https://..."/>
+    </Field></div>
+    <div className="full"><Field label="Biblioteca de anúncios do concorrente" hint="Página do anunciante na Biblioteca da Meta. Se o banco ainda não tiver a coluna, o link fica nas anotações.">
+      <input type="url" className="input" value={values.ad_library_url} onChange={e=>set('ad_library_url',e.target.value)} placeholder="https://www.facebook.com/ads/library/?view_all_page_id=..."/>
     </Field></div>
     <Field label={t('price')}>
       <input type="number" min="0" step="0.01" className="input" value={values.sale_price} onChange={e=>set('sale_price',e.target.value)} placeholder="47.00"/>
@@ -104,15 +117,15 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
     </div>
   </form>;
 }
-const blankAd={name:'',product_id:'',platform:'meta' as Platform,advertiser:'',ad_url:'',ad_copy:'',hook:'',cta:'',notes:'',started_at:'',first_seen_at:new Date().toISOString().slice(0,10),observed_active:'unknown' as AdStatus,is_favorite:false,meta_library_id:null as string|null,link_check_result:'not_checked' as const,last_checked_at:null as string|null,last_check_message:'',started_at_source:'unknown' as const,status_source:'unknown' as const};
+const blankAd={name:'',product_id:'',platform:'meta' as Platform,advertiser:'',advertiser_library_url:'',ad_url:'',ad_copy:'',hook:'',cta:'',notes:'',started_at:'',first_seen_at:new Date().toISOString().slice(0,10),observed_active:'unknown' as AdStatus,is_favorite:false,meta_library_id:null as string|null,link_check_result:'not_checked' as const,last_checked_at:null as string|null,last_check_message:'',started_at_source:'unknown' as const,status_source:'unknown' as const};
 export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:string;onComplete:()=>void;onCancel:()=>void}){
   const {supabase,products,refresh}=useWorkspace();
   const {t,defaultCurrency}=useLocale();
   const [addingProduct,setAddingProduct]=useState(false);
   const [newProductName,setNewProductName]=useState('');
   const [manual,setManual]=useState(false);
-  const [values,setValues]=useState({...blankAd,...(ad?{...ad,first_seen_at:ad.first_seen_at||'',started_at:ad.started_at||''}:{product_id:productId||''})});
-  const [file,setFile]=useState<File|null>(null);const [saving,setSaving]=useState(false);const [error,setError]=useState('');
+  const [values,setValues]=useState({...blankAd,...(ad?{...ad,advertiser_library_url:advertiserLibraryUrl(ad),notes:notesWithoutAdvertiserLibrary(ad.notes||''),first_seen_at:ad.first_seen_at||'',started_at:ad.started_at||''}:{product_id:productId||''})});
+  const [file,setFile]=useState<File|null>(null);const [thumb,setThumb]=useState<File|null>(null);const [removeThumb,setRemoveThumb]=useState(false);const [saving,setSaving]=useState(false);const [error,setError]=useState('');
   const [checking,setChecking]=useState(false);const [inspection,setInspection]=useState<MetaInspection|null>(null);
   const [pasteOpen,setPasteOpen]=useState(false);
   const [copiedText,setCopiedText]=useState('');
@@ -164,7 +177,9 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
       const {data:{user},error:authError}=await supabase.auth.getUser();if(authError)throw authError;if(!user)throw new Error('Sua sessão terminou. Entre novamente.');
       if(!values.product_id&&!newProductName.trim())throw new Error(t('noProduct'));
       if(values.ad_url&&!safeHttpUrl(values.ad_url))throw new Error('O link do anúncio deve começar com https:// ou http://.');
+      if(values.advertiser_library_url&&!safeHttpUrl(values.advertiser_library_url))throw new Error('A biblioteca do anunciante deve começar com https:// ou http://.');
       if(file){if(file.size>30*1024*1024)throw new Error('Arquivo de até 30 MB.');if(!['image/png','image/jpeg','image/webp','image/gif','video/mp4','video/webm'].includes(file.type))throw new Error('Formato permitido: PNG, JPG, WEBP, GIF, MP4 ou WEBM.');}
+      if(thumb){if(thumb.size>8*1024*1024)throw new Error('A miniatura do vídeo deve ter até 8 MB.');if(!['image/png','image/jpeg','image/webp'].includes(thumb.type))throw new Error('Miniatura permitida: PNG, JPG ou WEBP.');}
       let metaId:string|null=null;
       if(values.platform==='meta'&&values.ad_url){try{metaId=parseMetaLibraryUrl(values.ad_url).adId;}catch{ /* Link genérico salvo manualmente. */ }}
       const checkIsCurrent=!!inspection&&inspection.normalizedUrl===safeHttpUrl(values.ad_url);
@@ -182,19 +197,47 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
         selectedProductId=createdProduct.id;
       }
       const adName=values.name.trim()||(metaId?'Anúncio Meta #'+metaId:'Anúncio - '+(newProductName.trim()||products.find(p=>p.id===selectedProductId)?.name||'oferta'));
-      const row={user_id:user.id,product_id:selectedProductId,name:adName,platform:values.platform,advertiser:values.advertiser.trim(),ad_url:safeHttpUrl(values.ad_url),ad_copy:values.ad_copy.trim(),hook:values.hook.trim(),cta:values.cta.trim(),notes:values.notes.trim(),started_at:values.started_at||null,first_seen_at:values.first_seen_at||null,observed_active:values.observed_active,is_favorite:values.is_favorite,
+      const row={user_id:user.id,product_id:selectedProductId,name:adName,platform:values.platform,advertiser:values.advertiser.trim(),advertiser_library_url:safeHttpUrl(values.advertiser_library_url),ad_url:safeHttpUrl(values.ad_url),ad_copy:values.ad_copy.trim(),hook:values.hook.trim(),cta:values.cta.trim(),notes:values.notes.trim(),started_at:values.started_at||null,first_seen_at:values.first_seen_at||null,observed_active:values.observed_active,is_favorite:values.is_favorite,
         meta_library_id:metaId,
         link_check_result:checkIsCurrent?inspection!.result:ad?.ad_url===safeHttpUrl(values.ad_url)?ad.link_check_result:'not_checked',
         last_checked_at:checkIsCurrent?inspection!.checkedAt:ad?.ad_url===safeHttpUrl(values.ad_url)?ad.last_checked_at:null,
         last_check_message:checkIsCurrent?inspection!.message:ad?.ad_url===safeHttpUrl(values.ad_url)?ad.last_check_message:'',
         started_at_source:startedSource,status_source:statusSource};
       let id=ad?.id;
-      if(ad){const {error}=await supabase.from('ads').update(row).eq('id',ad.id);if(error)throw error;}
-      else{const {data,error}=await supabase.from('ads').insert(row).select('id').single();if(error)throw error;id=data.id;}
+      const persistAd=async (payload:typeof row | Omit<typeof row,'advertiser_library_url'>)=>{
+        if(ad){const {error}=await supabase.from('ads').update(payload).eq('id',ad.id);return {error,id:ad.id};}
+        const {data,error}=await supabase.from('ads').insert(payload).select('id').single();
+        return {error,id:data?.id as string|undefined};
+      };
+      let saved=await persistAd(row);
+      if(saved.error&&isMissingColumnError(saved.error)){
+        const {advertiser_library_url:libraryUrl,...withoutLibrary}=row;
+        saved=await persistAd({...withoutLibrary,notes:notesWithAdvertiserLibrary(withoutLibrary.notes,libraryUrl)});
+      }
+      if(saved.error)throw saved.error;
+      id=saved.id;
       if(file&&id){const ext=file.name.split('.').pop()?.toLowerCase()?.replace(/[^a-z0-9]/g,'')||'bin';const path=`${user.id}/${id}/${crypto.randomUUID()}.${ext}`;
         const {error:uploadError}=await supabase.storage.from('creatives').upload(path,file,{contentType:file.type,upsert:false});if(uploadError)throw new Error(`Anúncio salvo, mas mídia não enviada: ${uploadError.message}`);
         const {error:upErr}=await supabase.from('ads').update({creative_path:path,creative_type:file.type.startsWith('video')?'video':'image'}).eq('id',id);if(upErr)throw upErr;
         if(ad?.creative_path){await supabase.storage.from('creatives').remove([ad.creative_path]);}
+      }
+      if(thumb&&id){
+        const ext=thumb.type==='image/png'?'png':thumb.type==='image/webp'?'webp':'jpg';
+        const path=`${user.id}/${id}/${crypto.randomUUID()}.${ext}`;
+        const {error:uploadError}=await supabase.storage.from('creatives').upload(path,thumb,{contentType:thumb.type,upsert:false});
+        if(uploadError)throw new Error(`Anúncio salvo, mas a miniatura não foi enviada: ${uploadError.message}`);
+        const {error:upErr}=await supabase.from('ads').update({creative_thumb_path:path}).eq('id',id);
+        if(upErr){
+          await supabase.storage.from('creatives').remove([path]);
+          if(isMissingColumnError(upErr))throw new Error('Anúncio salvo. A miniatura precisa da coluna creative_thumb_path. Rode o SQL de biblioteca de anúncios no Supabase e envie a imagem de novo.');
+          throw new Error(`Anúncio salvo, mas a miniatura não foi gravada: ${upErr.message}`);
+        }
+        if(ad?.creative_thumb_path)await supabase.storage.from('creatives').remove([ad.creative_thumb_path]);
+      }else if(removeThumb&&ad?.creative_thumb_path&&id){
+        const {error:upErr}=await supabase.from('ads').update({creative_thumb_path:null}).eq('id',id);
+        if(upErr){
+          if(!isMissingColumnError(upErr))throw new Error(`Anúncio salvo, mas a miniatura não foi removida: ${upErr.message}`);
+        }else await supabase.storage.from('creatives').remove([ad.creative_thumb_path]);
       }
       if(checkIsCurrent&&id){
         const {error:logError}=await supabase.from('ad_snapshots').insert({user_id:user.id,ad_id:id,status:inspection!.status,check_method:'link',check_result:inspection!.result,notes:inspection!.message});
@@ -210,6 +253,11 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
         <input type="url" className="input" autoFocus value={values.ad_url}
           onChange={e=>{set('ad_url',e.target.value);setInspection(null);}}
           placeholder="https://www.facebook.com/ads/library/?id=..."/>
+      </Field>
+      <Field label="Biblioteca do anunciante" hint="Página desse anunciante na Biblioteca de Anúncios. Se a coluna ainda não existir, o link fica nas observações.">
+        <input type="url" className="input" value={values.advertiser_library_url}
+          onChange={e=>set('advertiser_library_url',e.target.value)}
+          placeholder="https://www.facebook.com/ads/library/?view_all_page_id=..."/>
       </Field>
       <div className="flex wrap gap-2 mt-2">
         <button type="button" className="btn btn-primary" onClick={inspectLink} disabled={checking||!values.ad_url.trim()}>
@@ -264,6 +312,13 @@ export function AdForm({ad,productId,onComplete,onCancel}:{ad?:Ad;productId?:str
       <Field label={t('upload')}>
         <input className="file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm" onChange={e=>setFile(e.target.files?.[0]||null)}/>
       </Field>
+      <Field label="Miniatura do vídeo (opcional)" hint="Capa em JPG, PNG ou WEBP. Aparece no card quando o anúncio é um vídeo sem arquivo.">
+        <input className="file-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{setThumb(e.target.files?.[0]||null);if(e.target.files?.[0])setRemoveThumb(false);}}/>
+      </Field>
+      {ad?.creative_thumb_path&&!thumb&&<label className="field" style={{flexDirection:'row',alignItems:'center',gap:8,marginTop:8}}>
+        <input type="checkbox" checked={removeThumb} onChange={e=>setRemoveThumb(e.target.checked)}/>
+        <span>Remover miniatura atual</span>
+      </label>}
     </div>
     {manual&&<div className="full manual-box">
       <strong>{t('manual')}</strong>
