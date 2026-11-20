@@ -281,73 +281,64 @@ export default function Products(){
       <div className={styles.metric}><span>Em teste</span><strong>{inTest}</strong></div>
     </div>}
 
-    <section className={styles.catalog} aria-label="Classificação das ofertas cadastradas">
+    <section className={styles.catalog}>
       <div className={styles.catalogTop}>
-        <div><div className={styles.kicker}>03 · COMPARE AS OPORTUNIDADES</div>
-          <h2>Ranking de pesquisa: melhores candidatas primeiro</h2>
-          <p>Ordenado por dados disponíveis e facilidade estimada de produzir um material próprio.</p>
+        <div>
+          <div className={styles.kicker}>03 · COMPARE AS OPORTUNIDADES</div>
+          <h2>Melhores candidatas para investigar</h2>
+          <p>Ordenadas por informação disponível e facilidade de produção.</p>
         </div>
         <div className={styles.catalogButtons}>
-          {products.length>0&&<>
-            <button className={styles.quiet} onClick={()=>downloadCsv('ofertas-digitais-cacador.csv',
-              ['Oferta','Nicho','País','Formato','Preço','Moeda','Nota de triagem','Página'],
-              offers.map(x=>[x.product.name,x.product.niche,x.product.country,formatName(x.product.notes),
-                x.product.sale_price,x.product.currency,x.radar.score,x.product.landing_url]))}>
-              <Download size={15}/> Exportar
-            </button>
-            <button className={styles.danger} onClick={()=>{setConfirmation('');setDeleteOpen(true);}}>
-              <Trash2 size={15}/> Zerar catálogo
-            </button>
-          </>}
+          <button className={styles.quiet} type="button" onClick={() => downloadCsv('ofertas-digitais.csv',
+            ['Nome','Nicho','Preço','Página','Nota'],
+            offers.map(o => [o.product.name,o.product.niche,o.product.sale_price,o.product.landing_url,o.radar.score]))}>
+            <Download size={15}/> Exportar
+          </button>
+          <button className={styles.danger} type="button" disabled={products.length===0}
+            onClick={() => {setDeleteOpen(true);setConfirmation('');}}>
+            <Trash2 size={15}/> Zerar catálogo
+          </button>
         </div>
       </div>
-      <div className={styles.tabs} role="group" aria-label="Mostrar ofertas">
-        {([
-          ['all','Todas'],['priority','Investigar primeiro'],['check','Precisam de dados'],
-          ['ads','Com anúncio identificado'],['testing','Em teste']
-        ] as const).map(([id,label])=>
-          <button key={id} type="button" className={styles.tab+' '+(filter===id?styles.tabActive:'')}
-            aria-pressed={filter===id} onClick={()=>setFilter(id)}>{label}</button>
-        )}
+      <div className={styles.tabs}>
+        <button className={filter==='all'?styles.tabActive:styles.tab} onClick={() => setFilter('all')}>Todas</button>
+        <button className={filter==='priority'?styles.tabActive:styles.tab} onClick={() => setFilter('priority')}>Investigar primeiro</button>
+        <button className={filter==='check'?styles.tabActive:styles.tab} onClick={() => setFilter('check')}>Precisam de dados</button>
+        <button className={filter==='ads'?styles.tabActive:styles.tab} onClick={() => setFilter('ads')}>Com anúncios</button>
+        <button className={filter==='testing'?styles.tabActive:styles.tab} onClick={() => setFilter('testing')}>Em teste</button>
       </div>
       <div className={styles.filters}>
-        <label className={styles.filterLabel}>Buscar pelo nome ou nicho
-          <input className={styles.input} type="search" value={search} onChange={e=>setSearch(e.target.value)}
-            placeholder="Ex.: TCC, idosos, planner..."/>
+        <label className={styles.filterLabel}>Buscar
+          <input className={styles.input} value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Nome, nicho ou país"/>
         </label>
-        <label className={styles.filterLabel}>Formato do entregável
+        <label className={styles.filterLabel}>Formato
           <select className={styles.select} value={formatFilter} onChange={e=>setFormatFilter(e.target.value)}>
-            <option value="all">Todos os formatos</option>
+            <option value="all">Todos</option>
             {digitalFormats.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
         </label>
-        <label className={styles.filterLabel}>Mercado da referência
+        <label className={styles.filterLabel}>País
           <select className={styles.select} value={countryFilter} onChange={e=>setCountryFilter(e.target.value)}>
             <option value="all">Todos os países</option>
-            {[...new Set(digital.map(p=>p.country))].filter(Boolean).sort().map(c=><option value={c} key={c}>{c}</option>)}
+            {markets.map(m=><option key={m.code} value={m.country}>{m.country}</option>)}
           </select>
         </label>
       </div>
-      <div className={styles.resultsInfo}>{filtered.length} oferta(s) exibida(s) · Pontuação de triagem de 0 a 100, não de faturamento.</div>
-      {loading&&<Load/>}
-      {!loading&&filtered.length===0&&
-        <div className={styles.empty}>
-          <FolderSearch size={31}/>
-          <h3>{digital.length?'Nenhuma oferta para esses filtros':'Seu radar digital está pronto para começar'}</h3>
-          <p>{digital.length?'Mude os filtros ou cadastre outra referência.':
-            'Cole acima o link da primeira página de vendas. Em seguida, salve anúncios e use a análise para escolher o que remodelar.'}</p>
-          {digital.length>0?<button className={styles.secondary} onClick={()=>{
-            setSearch('');setFilter('all');setCountryFilter('all');setFormatFilter('all');
-          }}>Limpar filtros</button>:<a className={styles.primary} href={discoveryLink}
-            target="_blank" rel="noopener noreferrer}>Encontrar primeiras ofertas <ExternalLink size={15}/></a>}
-        </div>}
-      {!loading&&filtered.length>0&&
-        <div className={styles.cards}>
-          {filtered.map(o=><OfferCard key={o.product.id} product={o.product} radar={o.radar} related={o.ads}/>)}
-        </div>}
-      {products.some(p=>p.product_type!=='digital')&&<p className={styles.disclaimer} style={{marginTop:16}}>
-        <CheckCircle2 size={14}/> Os produtos de outros tipos foram preservados, mas este radar mostra apenas ofertas digitais.
-      </p>}
+      <p className={styles.resultsInfo}>{filtered.length} oferta(s) · Ranking de pesquisa, não de vendas.</p>
+      {loading && <Load/>}
+      {!loading && filtered.length===0 && <div className={styles.empty}>
+        <FolderSearch size={30}/>
+        <h3>Comece salvando uma oferta digital</h3>
+        <p>Cole uma página no formulário acima ou altere os filtros para ver as ofertas.</p>
+        <button type="button" className={styles.secondary}
+          onClick={() => {setFilter('all');setFormatFilter('all');setCountryFilter('all');setSearch('');}}>
+          Limpar filtros
+        </button>
+      </div>}
+      {!loading && filtered.length!==0 && <div className={styles.cards}>
+        {filtered.map(o => <OfferCard key={o.product.id} product={o.product} radar={o.radar} related={o.ads}/>)}
+      </div>}
     </section>
 
     {deleteOpen&&<Modal title="Zerar todo o catálogo" subtitle="Atenção: a limpeza também inclui ofertas de outros tipos."
