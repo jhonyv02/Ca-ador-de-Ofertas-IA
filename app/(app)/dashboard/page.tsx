@@ -7,7 +7,6 @@ import {useLocale} from '@/components/locale';
 import {AdForm,ProductForm} from '@/components/forms';
 import {Modal,PageHeading,Section,Empty,Load,ScoreRing,Feedback} from '@/components/ui';
 import {opportunityScore} from '@/lib/utils';
-import {ChatgptOfferImport} from '@/components/chatgpt-offer-import';
 
 export default function Dashboard() {
  const {t}=useLocale();
@@ -20,7 +19,7 @@ export default function Dashboard() {
  const dbMissing=/schema cache|could not find the table|pgrst205/i.test(error);
  return <>
   <PageHeading eyebrow={t('dashboard')} title={t('overview')} description={t('quickStart')}
-   action={<button className="btn btn-primary" onClick={()=>setNewAd(true)}><Plus size={17}/>{t('newAd')}</button>}/>
+   action={<button className="btn btn-primary" onClick={()=>setNewProduct(true)}><Plus size={17}/> Adicionar oferta</button>}/>
   {error&&<div className="mb-2">
     <Feedback type="error">{dbMissing
       ? 'O banco ainda não está configurado. Execute o SQL inicial no Supabase do Caçador de Ofertas.'
@@ -32,14 +31,14 @@ export default function Dashboard() {
     </a></p>}
   </div>}
   <section className="banner" style={{marginBottom:20}}>
-    <div><strong>1. Encontre o anúncio &nbsp; 2. Salve o link &nbsp; 3. Compare as ofertas</strong>
-      <p>{t('autoOnly')}</p>
+    <div><strong>Comece com uma oferta. Faça a pesquisa no seu ritmo.</strong>
+      <p>1. Salve nome e link · 2. Confira anúncios e preço · 3. Compare os riscos antes de testar</p>
     </div>
     <div className="flex wrap gap-2">
       <a href="https://www.facebook.com/ads/library/" target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
         Meta Ads Library <ExternalLink size={15}/>
       </a>
-      <button className="btn btn-primary" onClick={()=>setNewAd(true)}>{t('newAd')} <ArrowRight size={15}/></button>
+      <button className="btn btn-primary" onClick={()=>setNewProduct(true)}>Cadastrar oferta <ArrowRight size={15}/></button>
     </div>
   </section>
   <section className="panel" style={{borderColor:'#377965',marginTop:0}}>
@@ -59,7 +58,6 @@ export default function Dashboard() {
       <Link href="/semana" className="btn btn-primary">Analisar a semana <ArrowRight size={15}/></Link>
     </div>
   </section>
-  <ChatgptOfferImport compact/>
   {loading?<Load/>:<>
     <div className="stats-grid simplified-stats">
       <div className="stat"><div><div className="stat-label">{t('products')}</div><div className="stat-value">{products.length}</div></div><LibraryBig size={20}/></div>
@@ -70,7 +68,7 @@ export default function Dashboard() {
       action={<Link href="/compare" className="small-link">{t('compare')} <ArrowRight size={14}/></Link>}>
       {ranked.length===0
         ? <Empty icon={<Search size={26}/>} headline={t('noProducts')}
-            description={t('quickStart')}
+            description="Nenhuma oferta antiga será importada automaticamente. Cadastre a primeira para começar."
             action={<div className="flex wrap gap-2">
               <button className="btn btn-primary" onClick={()=>setNewAd(true)}>{t('newAd')}</button>
               <button className="btn btn-ghost" onClick={()=>setNewProduct(true)}>{t('newProduct')}</button>
