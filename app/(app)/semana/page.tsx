@@ -142,7 +142,7 @@ export default function WeeklyDirect(){
       </p>
     </section>
     {loading?<Load/>:products.length===0?<section className="panel">
-      <p>Primeiro sincronize as ofertas encontradas e volte para comparar.</p>
+      <p>Primeiro cadastre uma oferta com nome e link. Depois volte para comparar as opções.</p>
       <Link href="/products" className="btn btn-primary">Ir para Produtos <ArrowRight size={15}/></Link>
     </section>:<>
       {report?<section className="panel" style={{borderColor:'#3e806c'}}>
