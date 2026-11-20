@@ -4,6 +4,7 @@ import {useMemo,useState,type FormEvent} from 'react';
 import {ArrowRight,BookOpenCheck,ChartNoAxesCombined,CheckCircle2,Download,ExternalLink,FolderSearch,Globe2,LoaderCircle,Plus,Search,ShieldAlert,Sparkles,Trash2} from 'lucide-react';
 import {useRouter} from 'next/navigation';
 import {useWorkspace} from '@/components/workspace';
+import {isPrintableOffer} from '@/lib/printable-eligibility';
 import {Load,Modal} from '@/components/ui';
 import {downloadCsv,brl,safeHttpUrl} from '@/lib/utils';
 import {comparableUrl,digitalFormats,digitalNiches,digitalRadar,formatLabel,formatTag,resolveFormatId,markets,metaDiscoveryUrl} from '@/lib/digital-radar';
@@ -76,7 +77,7 @@ export default function Products(){
   const [name,setName]=useState('');
   const [niche,setNiche]=useState('');
   const [market,setMarket]=useState<string>(defaultMarket.code);
-  const [format,setFormat]=useState('');
+  const [format,setFormat]=useState('printable');
   const [price,setPrice]=useState('');
   const [saving,setSaving]=useState(false);
   const [failure,setFailure]=useState('');
@@ -91,7 +92,7 @@ export default function Products(){
   const [confirmation,setConfirmation]=useState('');
   const [deleting,setDeleting]=useState(false);
 
-  const digital=useMemo(()=>products.filter(p=>p.product_type==='digital'),[products]);
+  const digital=useMemo(()=>products.filter(isPrintableOffer),[products]);
   const offers=useMemo(()=>digital.map(p=>{
     const related=ads.filter(ad=>ad.product_id===p.id);
     const analysis=analyses.find(a=>a.product_id===p.id&&a.kind==='product');
@@ -231,7 +232,7 @@ export default function Products(){
             <label className={styles.inputGroup}>Formato do produto
               <select className={styles.select} value={format} onChange={e=>setFormat(e.target.value)}>
                 <option value="">Descobrir depois</option>
-                {digitalFormats.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
+                {digitalFormats.filter(f=>f.id==='printable').map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
               </select>
             </label>
             <label className={styles.inputGroup}>Preço no país de origem (opcional)
@@ -330,7 +331,7 @@ export default function Products(){
         <label className={styles.filterLabel}>Formato
           <select className={styles.select} value={formatFilter} onChange={e=>setFormatFilter(e.target.value)}>
             <option value="all">Todos</option>
-            {digitalFormats.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
+            {digitalFormats.filter(f=>f.id==='printable').map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
         </label>
         <label className={styles.filterLabel}>País
