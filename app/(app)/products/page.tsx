@@ -295,7 +295,8 @@ export default function Products(){
         </label>
       </div>
       <div className={styles.resultsInfo}>{filtered.length} oferta(s) exibida(s) · Pontuação de triagem de 0 a 100, não de faturamento.</div>
-      {loading?<Load/>:filtered.length===0?
+      {loading&&<Load/>}
+      {!loading&&filtered.length===0&&
         <div className={styles.empty}>
           <FolderSearch size={31}/>
           <h3>{digital.length?'Nenhuma oferta para esses filtros':'Seu radar digital está pronto para começar'}</h3>
@@ -305,7 +306,8 @@ export default function Products(){
             setSearch('');setFilter('all');setCountryFilter('all');setFormatFilter('all');
           }}>Limpar filtros</button>:<a className={styles.primary} href={discoveryLink}
             target="_blank" rel="noopener noreferrer}>Encontrar primeiras ofertas <ExternalLink size={15}/></a>}
-        </div>:
+        </div>}
+      {!loading&&filtered.length>0&&
         <div className={styles.cards}>{filtered.map(({product:p,radar,ads:related})=>
           <article className={styles.card} key={p.id}>
             <div className={styles.cardHead}>
