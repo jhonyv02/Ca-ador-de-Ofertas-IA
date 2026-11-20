@@ -11,11 +11,16 @@ import {readSalesDraft} from '@/lib/sales-page';
 import Link from 'next/link';
 import {CurrencyPicker,MarketLanguagePicker} from '@/components/global-options';
 import {dbErrorMessage} from '@/lib/db-error';
+import {digitalFormats,formatTag,getDigitalFormat} from '@/lib/digital-radar';
 const blankProduct={name:'',niche:'',product_type:'digital' as ProductType,country:'Brasil',language:'pt-BR',currency:'BRL',sale_price:'',fulfillment_cost:'',extra_cost:'',landing_url:'',checkout_url:'',landing_copy:'',promise:'',target_audience:'',notes:'',status:'researching' as ProductStatus};
 export function ProductForm({product,onComplete,onCancel}:{product?:Product;onComplete:(id:string)=>void;onCancel:()=>void}) {
   const {supabase,refresh}=useWorkspace();
   const {t,defaultCurrency}=useLocale();
-  const [values,setValues]=useState({...blankProduct,...(product?{...product,sale_price:product.sale_price?.toString()||'',fulfillment_cost:product.fulfillment_cost?.toString()||'',extra_cost:product.extra_cost?.toString()||''}:{currency:defaultCurrency})});
+  const [values,setValues]=useState({...blankProduct,...(product?{
+    ...product,notes:product.notes.replace(/(?:^|\\n)#formato-digital:[a-z]+(?=\\n|$)/gi,'').trim(),
+    sale_price:product.sale_price?.toString()||'',fulfillment_cost:product.fulfillment_cost?.toString()||'',extra_cost:product.extra_cost?.toString()||''
+  }:{currency:defaultCurrency})});
+  const [digitalFormat,setDigitalFormat]=useState(product?getDigitalFormat(product.notes):'');
   const [saving,setSaving]=useState(false);const [error,setError]=useState('');
   const set=(key:string,val:string)=>setValues(prev=>({...prev,[key]:val}));
   async function submit(e:React.FormEvent){e.preventDefault();setSaving(true);setError('');
@@ -25,7 +30,7 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
       for(const x of [values.landing_url,values.checkout_url])if(x&&!safeHttpUrl(x))throw new Error('Informe URLs válidas iniciadas com https:// ou http://.');
       const data={user_id:user.id,name:values.name.trim(),niche:values.niche.trim(),product_type:values.product_type,country:values.country.trim(),language:values.language,currency:values.currency,
         sale_price:values.sale_price===''?null:Number(values.sale_price),fulfillment_cost:values.fulfillment_cost===''?null:Number(values.fulfillment_cost),extra_cost:values.extra_cost===''?null:Number(values.extra_cost),
-        landing_url:safeHttpUrl(values.landing_url),checkout_url:safeHttpUrl(values.checkout_url),landing_copy:values.landing_copy.trim(),promise:values.promise.trim(),target_audience:values.target_audience.trim(),notes:values.notes.trim(),status:values.status};
+        landing_url:safeHttpUrl(values.landing_url),checkout_url:safeHttpUrl(values.checkout_url),landing_copy:values.landing_copy.trim(),promise:values.promise.trim(),target_audience:values.target_audience.trim(),notes:[values.product_type==='digital'?formatTag(digitalFormat):'',values.notes.trim()].filter(Boolean).join('\n'),status:values.status};
       if([data.sale_price,data.fulfillment_cost,data.extra_cost].some(n=>n!==null&&(!Number.isFinite(n)||n<0)))throw new Error('Os custos e preços devem ser números positivos.');
       let id=product?.id;
       if(product){const {error}=await supabase.from('products').update(data).eq('id',product.id);if(error)throw error;}
@@ -46,6 +51,15 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
       <input type="number" min="0" step="0.01" className="input" value={values.sale_price} onChange={e=>set('sale_price',e.target.value)} placeholder="47.00"/>
     </Field>
     <Field label={t('currency')}><CurrencyPicker value={values.currency} onChange={v=>set('currency',v)}/></Field>
+    {values.product_type==='digital'&&<div className="full">
+      <Field label="Tipo de material digital" hint="Ajuda o radar a estimar a facilidade de criar uma versão autoral.">
+        <select className="input" value={digitalFormat} onChange={e=>setDigitalFormat(e.target.value)}>
+          <option value="">Ainda não sei</option>
+          {digitalFormats.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
+        </select>
+      </Field>
+    </div>}
+
 
     <div className="full">
       <details className="advanced-details" key={product?.id||'new'}>
