@@ -7,19 +7,29 @@ import {useLocale} from '@/components/locale';
 import {AdForm,ProductForm} from '@/components/forms';
 import {Modal,PageHeading,Section,Empty,Load,ScoreRing,Feedback} from '@/components/ui';
 import {opportunityScore} from '@/lib/utils';
+import {PushOptIn} from '@/components/push-opt-in';
 
 export default function Dashboard() {
  const {t}=useLocale();
  const {products,ads,loading,error,latestAnalysis}=useWorkspace();
  const [newAd,setNewAd]=useState(false);const [newProduct,setNewProduct]=useState(false);
+ const picks=products.filter(p=>p.weekly_pick);
  const ranked=useMemo(()=>products.map(p=>{
    const items=ads.filter(a=>a.product_id===p.id);
    return {product:p,items,score:opportunityScore(p,items,latestAnalysis(p.id))};
- }).sort((a,b)=>b.score.score-a.score.score),[products,ads,latestAnalysis]);
+ }).sort((a,b)=>Number(b.product.weekly_pick)-Number(a.product.weekly_pick)||b.score.score-a.score.score),[products,ads,latestAnalysis]);
  const dbMissing=/schema cache|could not find the table|pgrst205/i.test(error);
  return <>
   <PageHeading eyebrow={t('dashboard')} title={t('overview')} description={t('quickStart')}
    action={<button className="btn btn-primary" onClick={()=>setNewProduct(true)}><Plus size={17}/> Adicionar oferta</button>}/>
+  <PushOptIn compact/>
+  {picks.length>0&&<div className="mb-2">
+    {picks.map(product=><Link key={product.id} href={'/products/'+product.id} className="weekly-pick-banner">
+      <span className="pill pill-week">Escolha da semana</span>
+      <strong>{product.name}</strong>
+      <span className="muted">Prioridade para lançar nesta semana</span>
+    </Link>)}
+  </div>}
   {error&&<div className="mb-2">
     <Feedback type="error">{dbMissing
       ? 'O banco ainda não está configurado. Execute o SQL inicial no Supabase do Caçador de Ofertas.'
@@ -76,7 +86,7 @@ export default function Dashboard() {
         : ranked.slice(0,5).map(({product,items,score})=>
             <Link href={`/products/${product.id}`} key={product.id} className="list-row">
               <div className="row-main"><div className="product-icon"><Target size={18}/></div>
-                <div><div className="row-title">{product.name}</div>
+                <div><div className="row-title">{product.name} {product.weekly_pick&&<span className="pill pill-week">Escolha da semana</span>}</div>
                 <div className="row-meta"><span>{items.length} {t('ads').toLowerCase()}</span><span>{score.confidence}</span></div>
                 </div>
               </div>
