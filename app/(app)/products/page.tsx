@@ -7,7 +7,8 @@ import {useWorkspace} from '@/components/workspace';
 import {Load,Modal} from '@/components/ui';
 import {downloadCsv,brl,safeHttpUrl} from '@/lib/utils';
 import {comparableUrl,digitalFormats,digitalNiches,digitalRadar,formatName,formatTag,getDigitalFormat,markets,metaDiscoveryUrl} from '@/lib/digital-radar';
-import type {Product} from '@/lib/types';
+import type {Product,Ad} from '@/lib/types';
+import type {DigitalRadar} from '@/lib/digital-radar';
 import styles from './radar.module.css';
 
 type Filter='all'|'priority'|'check'|'ads'|'testing';
@@ -21,6 +22,39 @@ function suggestedName(url:string){
 }
 function normalized(value:string){
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+
+
+function OfferCard({product:p,radar,related}:{product:Product;radar:DigitalRadar;related:Ad[]}){
+  return (
+    <article className={styles.card}>
+      <div className={styles.cardHead}>
+        <span className={styles.chip}>{p.country==='Brasil'?'🇧🇷 Brasil':'🌍 Gringa'} · Digital</span>
+        <span className={styles.chip+' '+(radar.score>=63?styles.chipGood:styles.chipNeutral)}>{radar.label}</span>
+      </div>
+      <h3>{p.name}</h3>
+      <p className={styles.cardDescription}>{p.promise||p.niche||'Ainda sem descrição da promessa'}</p>
+      <div className={styles.cardFacts}>
+        <div><span>Formato</span><strong>{formatName(p.notes)}</strong></div>
+        <div><span>Preço de referência</span><strong>{p.sale_price!==null?brl(p.sale_price,p.currency):'Não informado'}</strong></div>
+        <div><span>Anúncios salvos</span><strong>{related.length}</strong></div>
+        <div><span>Facilidade</span><strong>{radar.effort}</strong></div>
+      </div>
+      <div>
+        <div className={styles.progressHead}><span>Nota de triagem</span><strong>{radar.score}/100</strong></div>
+        <div className={styles.progressTrack} role="meter" aria-label="Nota de triagem"
+          aria-valuemin={0} aria-valuemax={100} aria-valuenow={radar.score}>
+          <div className={styles.progressFill} style={{width:radar.score+'%'}}/>
+        </div>
+      </div>
+      <div className={styles.nextBox}><span>PRÓXIMO PASSO</span><strong>{radar.next}</strong></div>
+      <div className={styles.cardActions}>
+        <Link className={styles.secondary} href={'/products/'+p.id}><BookOpenCheck size={15}/> Ver análise</Link>
+        <Link className={styles.primary} href={'/products/'+p.id+'/remodelar'}><Sparkles size={15}/> Criar versão própria</Link>
+      </div>
+      <p className={styles.cardFoot}>{radar.confidence}. A nota não confirma vendas, autorização de uso ou adequação jurídica.</p>
+    </article>
+  );
 }
 
 export default function Products(){
@@ -308,35 +342,9 @@ export default function Products(){
             target="_blank" rel="noopener noreferrer}>Encontrar primeiras ofertas <ExternalLink size={15}/></a>}
         </div>}
       {!loading&&filtered.length>0&&
-        <div className={styles.cards}>{filtered.map(({product:p,radar,ads:related})=>
-          <article className={styles.card} key={p.id}>
-            <div className={styles.cardHead}>
-              <span className={styles.chip}>{p.country==='Brasil'?'🇧🇷 Brasil':'🌍 Gringa'} · Digital</span>
-              <span className={styles.chip+' '+(radar.score>=63?styles.chipGood:styles.chipNeutral)}>{radar.label}</span>
-            </div>
-            <h3>{p.name}</h3>
-            <p className={styles.cardDescription}>{p.promise||p.niche||'Ainda sem descrição da promessa'}</p>
-            <div className={styles.cardFacts}>
-              <div><span>Formato</span><strong>{formatName(p.notes)}</strong></div>
-              <div><span>Preço de referência</span><strong>{p.sale_price!==null?brl(p.sale_price,p.currency):'Não informado'}</strong></div>
-              <div><span>Anúncios salvos</span><strong>{related.length}</strong></div>
-              <div><span>Facilidade</span><strong>{radar.effort}</strong></div>
-            </div>
-            <div>
-              <div className={styles.progressHead}><span>Nota de triagem</span><strong>{radar.score}/100</strong></div>
-              <div className={styles.progressTrack} role="meter" aria-label="Nota de triagem"
-                aria-valuemin={0} aria-valuemax={100} aria-valuenow={radar.score}>
-                <div className={styles.progressFill} style={{width:radar.score+'%'}}/>
-              </div>
-            </div>
-            <div className={styles.nextBox}><span>PRÓXIMO PASSO</span><strong>{radar.next}</strong></div>
-            <div className={styles.cardActions}>
-              <Link className={styles.secondary} href={'/products/'+p.id}><BookOpenCheck size={15}/> Ver análise</Link>
-              <Link className={styles.primary} href={'/products/'+p.id+'/remodelar'}><Sparkles size={15}/> Criar versão própria</Link>
-            </div>
-            <p className={styles.cardFoot}>{radar.confidence}. A nota não confirma vendas, autorização de uso ou adequação jurídica.</p>
-          </article>
-        )}</div>}
+        <div className={styles.cards}>
+          {filtered.map(o=><OfferCard key={o.product.id} product={o.product} radar={o.radar} related={o.ads}/>)}
+        </div>}
       {products.some(p=>p.product_type!=='digital')&&<p className={styles.disclaimer} style={{marginTop:16}}>
         <CheckCircle2 size={14}/> Os produtos de outros tipos foram preservados, mas este radar mostra apenas ofertas digitais.
       </p>}
