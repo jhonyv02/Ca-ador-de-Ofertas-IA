@@ -26,7 +26,7 @@ const outputFormat={
       type:'object',additionalProperties:false,
       required:['product_id','score','signal','criticism'],
       properties:{
-        product_id:{type:'string'},score:{type:'integer'},
+        product_id:{type:'string',format:'uuid'},score:{type:'integer',minimum:0,maximum:100},
         signal:{type:'string',enum:['prepare','potential','reject']},
         criticism:{type:'string'}
       }
@@ -34,18 +34,18 @@ const outputFormat={
   }
 };
 const validation=z.object({
-  decision:z.enum(verdicts),selected_product_id:z.string().max(90),
-  confidence:z.enum(['low','medium','high']),diagnosis:z.string().max(2200),
-  reason_to_choose:z.string().max(1500),why_not_others:z.array(z.string().max(600)).max(10),
-  weak_points:z.array(z.string().max(500)).max(12),
-  next_actions:z.array(z.string().max(400)).max(12),
-  creative_angle:z.string().max(600),
-  seven_day_plan:z.array(z.string().max(350)).length(7),
-  stop_rules:z.array(z.string().max(400)).max(8),
+  decision:z.enum(verdicts),selected_product_id:z.string(),
+  confidence:z.enum(['low','medium','high']),diagnosis:z.string(),
+  reason_to_choose:z.string(),why_not_others:z.array(z.string()),
+  weak_points:z.array(z.string()),
+  next_actions:z.array(z.string()),
+  creative_angle:z.string(),
+  seven_day_plan:z.array(z.string()).length(7),
+  stop_rules:z.array(z.string()),
   comparison:z.array(z.object({
     product_id:z.string().uuid(),score:z.number().int().min(0).max(100),
-    signal:z.enum(['prepare','potential','reject']),criticism:z.string().max(600)
-  })).max(10)
+    signal:z.enum(['prepare','potential','reject']),criticism:z.string()
+  })).max(6)
 });
 const buckets=new Map<string,{count:number;expires:number}>();
 function underLimit(id:string){
@@ -148,14 +148,28 @@ export async function POST(req:Request){
     return NextResponse.json({error:response.status===429?'Limite de uso da API de IA atingido.':
       'Não foi possível concluir a análise crítica. Verifique a chave, o saldo e o modelo da API.'},{status:502});
   }
+  type OutputPart={type:string;text?:string};
+  let data:{status?:string;incomplete_details?:{reason?:string};output?:{content?:OutputPart[]}[]};
+  try{data=await response.json();}
+  catch{return NextResponse.json({error:'A IA não retornou um relatório completo.'},{status:502});}
+  if(data.status!=='completed'){
+    console.warn('Weekly IA response incomplete',data.status,data.incomplete_details?.reason);
+    return NextResponse.json({error:'A IA não concluiu o parecer da semana. Tente novamente.'},{status:502});
+  }
+  const parts=(data.output??[]).flatMap(item=>item.content??[]);
+  if(parts.some(part=>part.type==='refusal')){
+    return NextResponse.json({error:'A IA recusou gerar o parecer com os dados atuais.'},{status:502});
+  }
   let parsed:unknown;
-  try{const data=await response.json();
-    const output=(data.output||[]).flatMap((v:{content?:{type?:string;text?:string}[]})=>v.content||[])
-      .find((v:{type?:string})=>v.type==='output_text');
-    parsed=JSON.parse(output?.text||'{}');
+  try{
+    const reportText=parts.filter(part=>part.type==='output_text').map(part=>part.text??'').join('');
+    parsed=JSON.parse(reportText);
   }catch{return NextResponse.json({error:'A IA não retornou um relatório completo.'},{status:502});}
   const validated=validation.safeParse(parsed);
-  if(!validated.success)return NextResponse.json({error:'O formato do parecer da IA foi inválido.'},{status:502});
+  if(!validated.success){
+    console.warn('Weekly IA invalid report',validated.error.issues.map(({path,code})=>({path,code})));
+    return NextResponse.json({error:'O formato do parecer da IA foi inválido.'},{status:502});
+  }
   const report=validated.data;
   const selected=offers.find(p=>p.id===report.selected_product_id);
   const safeDecision=report.decision==='launch_one'&&(!selected||!selected.readiness.ready)?
