@@ -67,7 +67,8 @@ export async function POST(req:Request){
   const endpoint=input.action==='draft'?'offer.php':input.action==='preview'?'preview.php':'approve.php';
   const payload=input.action==='draft'?
     {...input.page,offer_id:input.productId}:
-    input.action==='preview'?{slug:input.slug}:{slug:input.slug,checks:input.checks};
+    input.action==='preview'?{slug:input.slug,offer_id:input.productId}:
+    {slug:input.slug,offer_id:input.productId,checks:input.checks};
   let response:Response;
   try{
     response=await fetch(siteBase+'/api/'+endpoint,{
