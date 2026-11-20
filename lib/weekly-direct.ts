@@ -1,6 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {z} from 'zod';
 import {directReadiness} from '@/lib/direct-traffic';
+import {isPrintableOffer} from '@/lib/printable-eligibility';
 import type {Ad,Product,TestRun} from '@/lib/types';
 
 const verdicts=['launch_one','prepare_one','no_viable_offer'] as const;
@@ -86,7 +87,7 @@ export async function runWeeklyDirect(input:{
 }):Promise<WeeklyDirectResult>{
   const supabase=input.supabase;
   const [pResult,aResult,tResult]=await Promise.all([
-    supabase.from('products').select('*').eq('user_id',input.userId).order('created_at',{ascending:false}).limit(80),
+    supabase.from('products').select('*').eq('user_id',input.userId).order('created_at',{ascending:false}).limit(500),
     supabase.from('ads').select('*').eq('user_id',input.userId).order('created_at',{ascending:false}).limit(500),
     supabase.from('test_runs').select('*').eq('user_id',input.userId).order('created_at',{ascending:false}).limit(400)
   ]);
@@ -94,10 +95,10 @@ export async function runWeeklyDirect(input:{
     ok:false,status:500,
     error:'Não foi possível carregar produtos, anúncios ou testes. Verifique a conexão do Supabase.',
   };
-  const products=(pResult.data||[]) as Product[];
+  const products=((pResult.data||[]) as Product[]).filter(isPrintableOffer);
   const ads=(aResult.data||[]) as Ad[];
   const runs=(tResult.data||[]) as TestRun[];
-  if(!products.length)return {ok:false,status:409,error:'Cadastre ou sincronize as ofertas em Produtos primeiro.'};
+  if(!products.length)return {ok:false,status:409,error:'Nenhuma oferta imprimível elegível para analisar nesta semana.'};
   const offers=products.map(p=>{
     const adList=ads.filter(a=>a.product_id===p.id);
     const tests=runs.filter(t=>t.product_id===p.id);
