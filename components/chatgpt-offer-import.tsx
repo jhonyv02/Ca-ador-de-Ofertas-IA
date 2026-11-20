@@ -5,10 +5,11 @@ import Link from 'next/link';
 import {useWorkspace} from '@/components/workspace';
 import {chatOffers as legacyOffers, metaSearchLinks, type ChatOffer} from '@/lib/chatgpt-offers';
 import {isPrintableOffer} from '@/lib/printable-eligibility';
-const chatOffers=legacyOffers.filter(o=>isPrintableOffer({product_type:'digital',name:o.name,niche:o.niche,promise:o.promise,notes:o.notes}));
 import {Feedback} from '@/components/ui';
 import type {Product} from '@/lib/types';
 import {dbErrorMessage} from '@/lib/db-error';
+
+const chatOffers=legacyOffers.filter(o=>isPrintableOffer({product_type:'digital',name:o.name,niche:o.niche,promise:o.promise,notes:o.notes}));
 
 const keyMarker=(key:string)=>'#chatgpt:'+key;
 const norm=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
