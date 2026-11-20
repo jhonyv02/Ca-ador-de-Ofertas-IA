@@ -40,10 +40,12 @@ VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:seu-email@exemplo.com
 PUSH_WEBHOOK_SECRET=
 SUPABASE_SERVICE_ROLE_KEY=
+ANALYZE_WEBHOOK_SECRET=
 ```
 
 - `OPENAI_API_KEY` é opcional para cadastrar e salvar ofertas; é necessária para os botões **Analisar com IA**.
 - As cinco variáveis de notificação (`VAPID_*`, `PUSH_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`) ficam só no servidor. O passo a passo, o SQL e o uso no celular estão em `NOTIFICACOES.md`. Nunca use a service role com prefixo `NEXT_PUBLIC_`.
+- `ANALYZE_WEBHOOK_SECRET` (mínimo 24 caracteres) autoriza a automação externa em `/api/analyze/hook` e `/api/weekly-direct/hook`. O passo a passo está em `AUTOMACAO.md`. Não use prefixo `NEXT_PUBLIC_`.
 - `NEXT_PUBLIC_*` ficam embutidas no bundle na etapa de **build**: se você mudar alguma, execute **Redeploy** na Hostinger (apenas reiniciar não basta).
 - `OPENAI_API_KEY` jamais deve ser colocada em `NEXT_PUBLIC_*` ou comitada no GitHub.
 - Insira os valores no painel; **não publique seu arquivo `.env.local`**.

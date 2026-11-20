@@ -24,6 +24,111 @@ const labels={
   no_viable_offer:'Nenhuma oferta liberada para anunciar',
 };
 const confidenceLabels={low:'baixa',medium:'média',high:'alta'};
+type StoredDecision={
+  id:string;decision:WeeklyReport['decision'];product_id:string|null;rationale:string;
+  risks:string[]|null;payload:unknown;model:string;created_at:string;
+};
+function asStoredView(row:StoredDecision):Saved|null{
+  if(!row.payload||typeof row.payload!=='object')return null;
+  const payload=row.payload as Partial<Saved>&{report?:Partial<WeeklyReport>};
+  const source=payload.report;
+  if(!source||(source.decision!=='launch_one'&&source.decision!=='prepare_one'&&source.decision!=='no_viable_offer'))return null;
+  const confidence=source.confidence==='high'||source.confidence==='medium'||source.confidence==='low'?source.confidence:'low';
+  return {
+    signature:'',
+    generated_at:payload.generated_at||row.created_at,
+    model:payload.model||row.model,
+    daily_budget_brl:Number(payload.daily_budget_brl||0),
+    budget_total_brl:Number(payload.budget_total_brl||0),
+    report:{
+      decision:source.decision,
+      selected_product_id:source.selected_product_id||row.product_id||'',
+      selected_name:source.selected_name||'',
+      confidence,
+      diagnosis:source.diagnosis||row.rationale||'',
+      reason_to_choose:source.reason_to_choose||row.rationale||'',
+      why_not_others:source.why_not_others||[],
+      weak_points:source.weak_points||(Array.isArray(row.risks)?row.risks:[]),
+      next_actions:source.next_actions||[],
+      creative_angle:source.creative_angle||'',
+      seven_day_plan:Array.isArray(source.seven_day_plan)?source.seven_day_plan:[],
+      stop_rules:source.stop_rules||[],
+      comparison:source.comparison||[],
+      ready:!!source.ready,
+      cpa_break_even:source.cpa_break_even??null,
+      cpa_conservative:source.cpa_conservative??null,
+    },
+  };
+}
+function DecisionPanel({eyebrow,note,view,champion}:{
+  eyebrow:string;note?:string;view:Saved;champion:{id:string;name:string}|null;
+}){
+  const report=view.report;
+  return <section className="panel" style={{borderColor:'#3e806c'}}>
+    <div className="flex between wrap center gap-2">
+      <div><div className="eyebrow">{eyebrow}</div>
+        <h2 style={{fontSize:21,marginBottom:8}}>{labels[report.decision]}</h2>
+        <span className="micro">
+          {new Date(view.generated_at).toLocaleString('pt-BR')} · Confiança {confidenceLabels[report.confidence]} · {view.model}
+        </span>
+      </div>
+      <span className="pill">{report.ready?'Checklist completo':'Revisão pendente'}</span>
+    </div>
+    {note&&<p className="micro mt-2" style={{marginBottom:0}}>{note}</p>}
+    {(champion||report.selected_name)&&<div style={{marginTop:16,padding:15,borderRadius:10,background:'#0e192b',border:'1px solid #2d4c61'}}>
+      <div className="micro">OFERTA SELECIONADA</div>
+      <h3 style={{fontSize:18,marginTop:6}}>{champion?.name||report.selected_name}</h3>
+      <p style={{fontSize:13,margin:'8px 0 0'}}>{report.reason_to_choose}</p>
+      {champion&&<><Link className="small-link mt-2" href={'/products/'+champion.id}>Abrir dossiê da oferta <ExternalLink size={14}/></Link><Link className="btn btn-primary mt-2" href={'/products/'+champion.id+'/remodelar'}><Sparkles size={15}/> Remodelar página de vendas</Link></>}
+    </div>}
+    <p style={{marginTop:15,fontSize:13}}>{report.diagnosis}</p>
+    <div className="two-col">
+      <section>
+        <h3 style={{margin:'0 0 10px'}}>Pontos que impedem uma decisão segura</h3>
+        {report.weak_points.length?
+          <ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{report.weak_points.map((p,i)=><li key={i}>{p}</li>)}</ul>
+          :<p className="micro">Sem novos pontos relatados.</p>}
+      </section>
+      <section>
+        <h3 style={{margin:'0 0 10px'}}>Por que as outras ficaram para trás</h3>
+        <ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{report.why_not_others.map((p,i)=><li key={i}>{p}</li>)}</ul>
+      </section>
+    </div>
+    <div className="info-note mt-2">
+      <strong>Mensagem central do criativo:</strong> {report.creative_angle}
+      {report.cpa_break_even!==null&&<>
+        <p style={{margin:'10px 0 0'}}>CPA máximo de equilíbrio informado pelas taxas cadastradas: <strong>{brl(report.cpa_break_even)}</strong>.
+          Limite conservador de planejamento (70% da contribuição): <strong>{brl(report.cpa_conservative)}</strong>.
+          Estes tetos só valem se todos os custos forem verdadeiros.</p>
+      </>}
+    </div>
+    <h3 style={{margin:'20px 0 10px'}}>O que fazer antes de investir</h3>
+    <ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{report.next_actions.map((s,i)=><li key={i}>{s}</li>)}</ul>
+    <h3 style={{margin:'20px 0 10px'}}>Roteiro de 7 dias: {brl(view.daily_budget_brl)} por dia · {brl(view.budget_total_brl)} no total</h3>
+    <div className="card-grid">{report.seven_day_plan.map((task,i)=><div className="product-card" key={i}>
+      <div className="micro">DIA {i+1}</div><p style={{fontSize:12,margin:0}}>{task}</p>
+    </div>)}</div>
+    <h3 style={{margin:'20px 0 10px'}}>Quando pausar ou revisar</h3>
+    <ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{report.stop_rules.map((s,i)=><li key={i}>{s}</li>)}</ul>
+    {report.comparison.length>0&&<>
+      <h3 style={{margin:'20px 0 10px'}}>Comparação feita pela IA</h3>
+      <div className="table-wrap"><table className="data-table">
+        <thead><tr><th>Oferta</th><th>Nota da hipótese</th><th>Decisão</th><th>Crítica</th></tr></thead>
+        <tbody>{report.comparison.map(c=><tr key={c.product_id}>
+          <td><Link href={'/products/'+c.product_id}>{c.name}</Link></td>
+          <td>{c.score}/100</td>
+          <td>{c.ready?'Checklist completo':c.signal==='reject'?'Rejeitar agora':'Preparar'}</td>
+          <td style={{maxWidth:390,whiteSpace:'normal',lineHeight:1.6}}>{c.criticism}</td>
+        </tr>)}</tbody>
+      </table></div>
+      <p className="micro mt-2">A nota mede a avaliação crítica da hipótese, não a probabilidade de vender.</p>
+    </>}
+    <p className="micro mt-3" style={{marginBottom:0}}>
+      Decisão assistida por IA, sem garantia de rentabilidade. Não publique conteúdo de terceiros sem
+      licença e revisão técnica. Ao alterar produtos, anúncios, resultados ou orçamento, gere um novo parecer.
+    </p>
+  </section>;
+}
 export default function WeeklyDirect(){
   const {products,ads,testRuns,supabase,refresh,loading,error}=useWorkspace();
   const [budgetText,setBudgetText]=useState('35');
@@ -31,6 +136,7 @@ export default function WeeklyDirect(){
   const weeklyBudget=dailyBudget*7;
   const [busy,setBusy]=useState(false);
   const [report,setReport]=useState<Saved|null>(null);
+  const [persisted,setPersisted]=useState<StoredDecision|null>(null);
   const [failure,setFailure]=useState('');
   const [userId,setUserId]=useState('');
   const [selectedId,setSelectedId]=useState('');
@@ -64,9 +170,26 @@ export default function WeeklyDirect(){
       else setReport(null);
     }catch{setReport(null);}
   },[cacheKey,signature,userId,loading]);
+  useEffect(()=>{
+    if(!userId)return;
+    let alive=true;
+    void supabase.from('weekly_decisions').select('id,decision,product_id,rationale,risks,payload,model,created_at')
+      .eq('user_id',userId).order('created_at',{ascending:false}).limit(1).maybeSingle()
+      .then(({data,error:loadError})=>{
+        if(!alive)return;
+        if(loadError||!data){setPersisted(null);return;}
+        setPersisted(data as StoredDecision);
+      });
+    return ()=>{alive=false;};
+  },[supabase,userId]);
   const selected=ranked.find(x=>x.product.id===selectedId)||ranked[0];
   const champion=report?.report.selected_product_id?
     products.find(p=>p.id===report.report.selected_product_id):null;
+  const persistedView=persisted?asStoredView(persisted):null;
+  const persistedChampion=persistedView?.report.selected_product_id?
+    products.find(p=>p.id===persistedView.report.selected_product_id)||{
+      id:persistedView.report.selected_product_id,name:persistedView.report.selected_name,
+    }:null;
   async function analyze(){
     setFailure('');
     if(!Number.isFinite(dailyBudget)||dailyBudget<5||dailyBudget>5000){
@@ -145,69 +268,14 @@ export default function WeeklyDirect(){
       <p>Primeiro cadastre uma oferta com nome e link. Depois volte para comparar as opções.</p>
       <Link href="/products" className="btn btn-primary">Ir para Produtos <ArrowRight size={15}/></Link>
     </section>:<>
-      {report?<section className="panel" style={{borderColor:'#3e806c'}}>
-        <div className="flex between wrap center gap-2">
-          <div><div className="eyebrow">PARECER CRÍTICO DA IA</div>
-            <h2 style={{fontSize:21,marginBottom:8}}>{labels[report.report.decision]}</h2>
-            <span className="micro">
-              {new Date(report.generated_at).toLocaleString('pt-BR')} · Confiança {confidenceLabels[report.report.confidence]} · {report.model}
-            </span>
-          </div>
-          <span className="pill">{report.report.ready?'Checklist completo':'Revisão pendente'}</span>
-        </div>
-        {champion&&<div style={{marginTop:16,padding:15,borderRadius:10,background:'#0e192b',border:'1px solid #2d4c61'}}>
-          <div className="micro">OFERTA SELECIONADA</div>
-          <h3 style={{fontSize:18,marginTop:6}}>{champion.name}</h3>
-          <p style={{fontSize:13,margin:'8px 0 0'}}>{report.report.reason_to_choose}</p>
-          <Link className="small-link mt-2" href={'/products/'+champion.id}>Abrir dossiê da oferta <ExternalLink size={14}/></Link><Link className="btn btn-primary mt-2" href={"/products/"+champion.id+"/remodelar"}><Sparkles size={15}/> Remodelar página de vendas</Link>
-        </div>}
-        <p style={{marginTop:15,fontSize:13}}>{report.report.diagnosis}</p>
-        <div className="two-col">
-          <section>
-            <h3 style={{margin:'0 0 10px'}}>Pontos que impedem uma decisão segura</h3>
-            {report.report.weak_points.length?
-              <ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{report.report.weak_points.map((p,i)=><li key={i}>{p}</li>)}</ul>
-              :<p className="micro">Sem novos pontos relatados.</p>}
-          </section>
-          <section>
-            <h3 style={{margin:'0 0 10px'}}>Por que as outras ficaram para trás</h3>
-            <ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{report.report.why_not_others.map((p,i)=><li key={i}>{p}</li>)}</ul>
-          </section>
-        </div>
-        <div className="info-note mt-2">
-          <strong>Mensagem central do criativo:</strong> {report.report.creative_angle}
-          {report.report.cpa_break_even!==null&&<>
-            <p style={{margin:'10px 0 0'}}>CPA máximo de equilíbrio informado pelas taxas cadastradas: <strong>{brl(report.report.cpa_break_even)}</strong>.
-              Limite conservador de planejamento (70% da contribuição): <strong>{brl(report.report.cpa_conservative)}</strong>.
-              Estes tetos só valem se todos os custos forem verdadeiros.</p>
-          </>}
-        </div>
-        <h3 style={{margin:'20px 0 10px'}}>O que fazer antes de investir</h3>
-        <ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{report.report.next_actions.map((s,i)=><li key={i}>{s}</li>)}</ul>
-        <h3 style={{margin:'20px 0 10px'}}>Roteiro de 7 dias: {brl(report.daily_budget_brl)} por dia · {brl(report.budget_total_brl)} no total</h3>
-        <div className="card-grid">{report.report.seven_day_plan.map((task,i)=><div className="product-card" key={i}>
-          <div className="micro">DIA {i+1}</div><p style={{fontSize:12,margin:0}}>{task}</p>
-        </div>)}</div>
-        <h3 style={{margin:'20px 0 10px'}}>Quando pausar ou revisar</h3>
-        <ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{report.report.stop_rules.map((s,i)=><li key={i}>{s}</li>)}</ul>
-        {report.report.comparison.length>0&&<>
-          <h3 style={{margin:'20px 0 10px'}}>Comparação feita pela IA</h3>
-          <div className="table-wrap"><table className="data-table">
-            <thead><tr><th>Oferta</th><th>Nota da hipótese</th><th>Decisão</th><th>Crítica</th></tr></thead>
-            <tbody>{report.report.comparison.map(c=><tr key={c.product_id}>
-              <td><Link href={'/products/'+c.product_id}>{c.name}</Link></td>
-              <td>{c.score}/100</td>
-              <td>{c.ready?'Checklist completo':c.signal==='reject'?'Rejeitar agora':'Preparar'}</td>
-              <td style={{maxWidth:390,whiteSpace:'normal',lineHeight:1.6}}>{c.criticism}</td>
-            </tr>)}</tbody>
-          </table></div>
-          <p className="micro mt-2">A nota mede a avaliação crítica da hipótese, não a probabilidade de vender.</p>
-        </>}
-        <p className="micro mt-3" style={{marginBottom:0}}>
-          Decisão assistida por IA, sem garantia de rentabilidade. Não publique conteúdo de terceiros sem
-          licença e revisão técnica. Ao alterar produtos, anúncios, resultados ou orçamento, gere um novo parecer.
-        </p>
-      </section>:<section className="panel">
+      {persistedView&&<DecisionPanel eyebrow="ÚLTIMA DECISÃO GRAVADA" note="Esta decisão ficou salva no servidor. Se ela manda lançar ou preparar uma oferta, essa oferta vira a escolha da semana. O botão abaixo continua gerando um parecer só neste navegador." view={persistedView} champion={persistedChampion}/>}
+      {persisted&&!persistedView&&<section className="panel" style={{borderColor:'#3e806c'}}>
+        <div className="eyebrow">ÚLTIMA DECISÃO GRAVADA</div>
+        <h2 style={{fontSize:21}}>{labels[persisted.decision]}</h2>
+        <p style={{fontSize:13}}>{persisted.rationale}</p>
+        {Array.isArray(persisted.risks)&&persisted.risks.length>0&&<ul style={{fontSize:12,lineHeight:1.8,paddingLeft:19}}>{persisted.risks.map((item,index)=><li key={index}>{item}</li>)}</ul>}
+      </section>}
+      {report?<DecisionPanel eyebrow="PARECER CRÍTICO DA IA" view={report} champion={champion?{id:champion.id,name:champion.name}:null}/>:!persisted&&<section className="panel">
         <div className="flex center gap-2"><ShieldAlert size={19}/>
           <h2>Não há recomendação de IA atual</h2></div>
         <p className="muted mt-2" style={{fontSize:12}}>

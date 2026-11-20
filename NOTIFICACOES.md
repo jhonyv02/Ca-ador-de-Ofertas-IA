@@ -95,7 +95,9 @@ E, na análise desse produto, `"breakdown": {"ease": 24}`. Cada usuário só é 
 
    **Se um dia quiser o aviso dentro de um APK**, o caminho mais curto ainda é o Web Push que este site já tem, trocando a WebView por uma Trusted Web Activity (TWA) feita com o Bubblewrap. O Chrome passa a abrir o site em tela cheia e consegue mostrar a notificação, desde que o site publique o `assetlinks.json` e o APK seja assinado de novo. Isso é outro aplicativo, não um ajuste pequeno neste APK. Capacitor seria ainda mais trabalhoso: exigiria Firebase Cloud Messaging (projeto Firebase, `google-services.json` e código nativo) e não reaproveita sozinho estas chaves VAPID. Para quem não vai publicar na Play Store nem manter Firebase, fique no ícone instalado pelo Chrome.
 
-8. Confira com uma oferta de teste na sua conta. Inserir em `products` deve gerar "Nova oferta". Mudar `weekly_pick` para `true` deve gerar "Escolha da semana" e o selo dourado no painel, na lista de produtos e na decisão da semana. O toque na notificação abre a oferta.
+8. Confira com uma oferta de teste na sua conta. Inserir em `products` deve gerar "Nova oferta". Mudar `weekly_pick` para `true` deve gerar "Escolha da semana" e o selo dourado no painel, na lista de produtos e na decisão da semana. Mudar `status` de outro valor para `ready` deve gerar "Pronto para aprovação", com o texto "Produto preparado para aprovação: " e o nome da oferta. Inserir a oferta já com status `ready` não dispara esse aviso: ele só sai na transição. O toque na notificação abre a oferta.
+
+A auditoria OpenAI e a decisão semanal disparadas por uma automação externa, sem login, estão em `AUTOMACAO.md`. Elas usam outro segredo, `ANALYZE_WEBHOOK_SECRET`, e o SQL `supabase/upgrade-auditoria-openai.sql`.
 
 Se o aviso não chegar, no SQL Editor:
 

@@ -35,11 +35,14 @@ export interface Snapshot {
 export interface Breakdown {
   demand: number; offer: number; pain: number; margin: number; execution: number; risk: number;
 }
+export type AnalysisKind = 'product' | 'ad' | 'openai_audit';
+export type AuditVerdict = 'approve' | 'reject' | 'needs_work';
 export interface Analysis {
   id: string; user_id: string; product_id: string; ad_id: string | null;
-  kind: 'product' | 'ad'; score: number; confidence: 'low'|'medium'|'high';
+  kind: AnalysisKind; score: number; confidence: 'low'|'medium'|'high';
   summary: string; strengths: string[]; risks: string[]; opportunities: string[];
-  breakdown: Breakdown; recommendation: string; model: string;
+  breakdown: Breakdown | Record<string, unknown>; recommendation: string; model: string;
+  verdict?: AuditVerdict | null; blockers?: string[] | null;
   created_at: string;
 }
 export interface TestRun {

@@ -6,7 +6,7 @@ import {useRouter} from 'next/navigation';
 import {useWorkspace} from '@/components/workspace';
 import {Load,Modal} from '@/components/ui';
 import {downloadCsv,brl,safeHttpUrl} from '@/lib/utils';
-import {comparableUrl,digitalFormats,digitalNiches,digitalRadar,formatLabel,formatTag,resolveFormatId,markets,metaDiscoveryUrl} from '@/lib/digital-radar';
+import {comparableUrl,digitalFormats,digitalNiches,digitalRadar,formatLabel,formatTag,isResearchBreakdown,resolveFormatId,markets,metaDiscoveryUrl} from '@/lib/digital-radar';
 import type {Product,Ad} from '@/lib/types';
 import type {DigitalRadar} from '@/lib/digital-radar';
 import {Creative} from '@/components/creative';
@@ -94,7 +94,8 @@ export default function Products(){
   const digital=useMemo(()=>products.filter(p=>p.product_type==='digital'),[products]);
   const offers=useMemo(()=>digital.map(p=>{
     const related=ads.filter(ad=>ad.product_id===p.id);
-    const analysis=analyses.find(a=>a.product_id===p.id&&a.kind==='product');
+    const research=analyses.find(a=>a.product_id===p.id&&a.kind==='product'&&(a.model==='Grok Bot'||isResearchBreakdown(a.breakdown)));
+    const analysis=research??analyses.find(a=>a.product_id===p.id&&a.kind==='product');
     return {product:p,ads:related,radar:digitalRadar(p,related,analysis)};
   }).sort((a,b)=>Number(b.product.weekly_pick)-Number(a.product.weekly_pick)||
     b.radar.score-a.radar.score||

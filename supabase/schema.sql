@@ -86,7 +86,7 @@ create table if not exists public.analyses (
   user_id uuid not null references auth.users(id) on delete cascade,
   product_id uuid not null,
   ad_id uuid,
-  kind text not null check (kind in ('product','ad')),
+  kind text not null check (kind in ('product','ad','openai_audit')),
   score int not null check (score between 0 and 100),
   confidence text not null default 'low' check (confidence in ('low','medium','high')),
   summary text not null default '',
@@ -96,8 +96,14 @@ create table if not exists public.analyses (
   breakdown jsonb not null default '{}'::jsonb,
   recommendation text not null default '',
   model text not null default '',
+  verdict text check (verdict is null or verdict in ('approve','reject','needs_work')),
+  blockers jsonb check (blockers is null or jsonb_typeof(blockers) = 'array'),
   created_at timestamptz not null default now(),
-  constraint analysis_kind_matches_ad check ((kind='product' and ad_id is null) or (kind='ad' and ad_id is not null)),
+  constraint analysis_kind_matches_ad check (
+    (kind='product' and ad_id is null)
+    or (kind='ad' and ad_id is not null)
+    or (kind='openai_audit' and ad_id is null)
+  ),
   constraint fk_analyses_products_own foreign key(product_id,user_id)
     references public.products(id,user_id) on delete cascade,
   constraint fk_analyses_ads_own foreign key(ad_id,user_id)
@@ -357,6 +363,65 @@ begin
 end;
 $$;
 
+-- Auditoria OpenAI e decisão semanal gravada.
+-- O mesmo script idempotente está em supabase/upgrade-auditoria-openai.sql.
+alter table public.analyses add column if not exists verdict text;
+alter table public.analyses add column if not exists blockers jsonb;
+
+do $$
+declare
+  r record;
+begin
+  for r in
+    select con.conname
+    from pg_constraint con
+    join pg_class rel on rel.oid = con.conrelid
+    join pg_namespace nsp on nsp.oid = rel.relnamespace
+    where nsp.nspname = 'public'
+      and rel.relname = 'analyses'
+      and con.contype = 'c'
+      and pg_get_constraintdef(con.oid) ilike '%kind%'
+  loop
+    execute format('alter table public.analyses drop constraint %I', r.conname);
+  end loop;
+end $$;
+
+alter table public.analyses add constraint analyses_kind_check
+  check (kind in ('product', 'ad', 'openai_audit'));
+alter table public.analyses add constraint analysis_kind_matches_ad
+  check (
+    (kind = 'product' and ad_id is null)
+    or (kind = 'ad' and ad_id is not null)
+    or (kind = 'openai_audit' and ad_id is null)
+  );
+alter table public.analyses drop constraint if exists analyses_verdict_check;
+alter table public.analyses add constraint analyses_verdict_check
+  check (verdict is null or verdict in ('approve', 'reject', 'needs_work'));
+alter table public.analyses drop constraint if exists analyses_blockers_check;
+alter table public.analyses add constraint analyses_blockers_check
+  check (blockers is null or jsonb_typeof(blockers) = 'array');
+
+create table if not exists public.weekly_decisions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  decision text not null check (decision in ('launch_one', 'prepare_one', 'no_viable_offer')),
+  product_id uuid references public.products(id) on delete set null,
+  rationale text not null default '',
+  risks jsonb not null default '[]'::jsonb,
+  payload jsonb not null default '{}'::jsonb,
+  model text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_weekly_decisions_owner_created
+  on public.weekly_decisions (user_id, created_at desc);
+alter table public.weekly_decisions enable row level security;
+drop policy if exists weekly_decisions_select_own on public.weekly_decisions;
+create policy weekly_decisions_select_own on public.weekly_decisions
+  for select to authenticated using ((select auth.uid()) = user_id);
+revoke all on public.weekly_decisions from anon;
+grant select on public.weekly_decisions to authenticated;
+grant select, insert, update, delete on public.weekly_decisions to service_role;
+
 create or replace function private.enqueue_product_push()
 returns trigger
 language plpgsql
@@ -372,6 +437,9 @@ begin
   end if;
   if new.weekly_pick is true and (tg_op = 'INSERT' or old.weekly_pick is distinct from true) then
     events := events || jsonb_build_array('weekly_pick');
+  end if;
+  if tg_op = 'UPDATE' and new.status = 'ready' and old.status is distinct from 'ready' then
+    events := events || jsonb_build_array('ready_for_approval');
   end if;
   if jsonb_array_length(events) = 0 then
     return new;
@@ -425,7 +493,7 @@ create trigger trg_products_weekly_pick
 
 drop trigger if exists trg_products_push on public.products;
 create trigger trg_products_push
-  after insert or update of weekly_pick on public.products
+  after insert or update of weekly_pick, status on public.products
   for each row execute function private.enqueue_product_push();
 
 notify pgrst, 'reload schema';
@@ -443,11 +511,11 @@ where schemaname = 'public'
   and tablename = 'push_subscriptions';
 
 
--- Resultado esperado: 6 linhas (products, ads, ad_snapshots, analyses, test_runs, push_subscriptions).
+-- Resultado esperado: 7 linhas (products, ads, ad_snapshots, analyses, test_runs, push_subscriptions, weekly_decisions).
 select table_name as tabela_criada
 from information_schema.tables
 where table_schema='public'
-  and table_name in ('products','ads','ad_snapshots','analyses','test_runs','push_subscriptions')
+  and table_name in ('products','ads','ad_snapshots','analyses','test_runs','push_subscriptions','weekly_decisions')
 order by table_name;
 
 -- Biblioteca de anúncios da Meta (o mesmo script idempotente está em supabase/upgrade-biblioteca-anuncios.sql).

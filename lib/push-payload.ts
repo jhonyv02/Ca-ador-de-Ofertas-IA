@@ -1,7 +1,7 @@
 import {createHash, timingSafeEqual} from 'node:crypto';
 
 export const PUSH_SECRET_PLACEHOLDER = 'TROQUE_ESTE_SEGREDO_POR_UM_VALOR_LONGO';
-export type PushEvent = 'new_offer' | 'weekly_pick';
+export type PushEvent = 'new_offer' | 'weekly_pick' | 'ready_for_approval';
 export type PushMessage = {
   event: PushEvent;
   title: string;
@@ -14,6 +14,12 @@ export function bearerToken(header: string | null): string {
   if (!header) return '';
   const match = header.match(/^Bearer\s+(\S+)$/i);
   return match?.[1] || '';
+}
+
+export function configuredWebhookSecret(value: string | undefined): string | null {
+  const secret = (value || '').trim();
+  if (secret.length < 24 || secret === PUSH_SECRET_PLACEHOLDER) return null;
+  return secret;
 }
 
 export function webhookAuthorized(header: string | null, expected: string | undefined): boolean {
@@ -46,6 +52,15 @@ export function pushMessages(product: {id: string; name: string; weekly_pick?: b
       body: 'Prioridade para lançar: ' + name,
       url,
       tag: 'weekly_pick-' + product.id,
+    });
+  }
+  if (events.includes('ready_for_approval')) {
+    messages.push({
+      event: 'ready_for_approval',
+      title: 'Pronto para aprovação',
+      body: 'Produto preparado para aprovação: ' + name,
+      url,
+      tag: 'ready_for_approval-' + product.id,
     });
   }
   return messages;

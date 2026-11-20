@@ -72,13 +72,49 @@ export function formatLabel(product:{format?:string|null;notes?:string|null}){
   const format=resolveFormatId(product);
   return digitalFormats.find(f=>f.id===format)?.label||'Formato não informado';
 }
+export const researchCriteria=[
+  {key:'facilidade',label:'Facilidade de produção'},
+  {key:'adequacao_br',label:'Adequação ao Brasil'},
+  {key:'demanda_exterior',label:'Demanda no exterior'},
+  {key:'diferenciacao',label:'Diferenciação'},
+  {key:'trafego_direto',label:'Tráfego direto'},
+] as const;
+export type ResearchBar={key:string;label:string;pontos:number;max:number;motivo:string};
+
+function readCriterion(value:unknown):{points:number;max:number;motivo:string}|null {
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const row=value as {pontos?:unknown;max?:unknown;motivo?:unknown};
+  const declared=finiteInRange(row.max,1,100);
+  const max=declared??30;
+  const points=finiteInRange(row.pontos,0,max);
+  if(points===null)return null;
+  return {points,max,motivo:typeof row.motivo==='string'?row.motivo:''};
+}
+/** Barras da pesquisa do assistente ({pontos,max,motivo}). Null se o breakdown não for desse formato. */
+export function researchBars(breakdown:unknown):ResearchBar[]|null {
+  if(!breakdown||typeof breakdown!=='object'||Array.isArray(breakdown))return null;
+  const record=breakdown as Record<string,unknown>;
+  let found=false;
+  const bars=researchCriteria.map(item=>{
+    const parsed=readCriterion(record[item.key]);
+    if(parsed)found=true;
+    return {key:item.key,label:item.label,pontos:parsed?.points??0,max:parsed?.max??0,motivo:parsed?.motivo??''};
+  });
+  return found?bars:null;
+}
+export function isResearchBreakdown(breakdown:unknown):boolean {
+  return researchBars(breakdown)!==null;
+}
 /** Pontos de facilidade gravados pelo assistente ou pela análise IA.
- *  `ease` / `facilidade` usam a escala 0–30. `execution` acima de 15 também
- *  entra nessa escala; até 15 segue o critério oficial da análise (0–15). */
+ *  `ease` / `facilidade` numéricos usam a escala 0–30. `facilidade` também
+ *  aceita o objeto {pontos,max,motivo} da pesquisa. `execution` acima de 15
+ *  entra na escala 0–30; até 15 segue o critério oficial da análise (0–15). */
 export function easeFromBreakdown(breakdown:unknown):EasePoints|null {
-  if(!breakdown||typeof breakdown!=='object')return null;
+  if(!breakdown||typeof breakdown!=='object'||Array.isArray(breakdown))return null;
   const record=breakdown as Record<string,unknown>;
   for(const key of ['ease','facilidade','ease_score']){
+    const criterion=readCriterion(record[key]);
+    if(criterion)return {points:criterion.points,max:criterion.max};
     const points=finiteInRange(record[key],0,30);
     if(points!==null)return {points,max:30};
   }

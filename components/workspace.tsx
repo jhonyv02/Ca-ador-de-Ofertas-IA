@@ -77,7 +77,11 @@ export function WorkspaceProvider({children}:{children:React.ReactNode}) {
     }
   },[supabase]);
   useEffect(()=>{void refresh();},[refresh]);
-  const latestAnalysis=useCallback((productId:string,adId?:string)=>analyses.find(a=>a.product_id===productId&&a.kind===(adId?'ad':'product')&&(adId?a.ad_id===adId:true)),[analyses]);
+  const latestAnalysis=useCallback((productId:string,adId?:string)=>{
+    if(adId)return analyses.find(a=>a.product_id===productId&&a.kind==='ad'&&a.ad_id===adId);
+    return analyses.find(a=>a.product_id===productId&&a.kind==='openai_audit')
+      ?? analyses.find(a=>a.product_id===productId&&a.kind==='product');
+  },[analyses]);
   return <Context.Provider value={{supabase,products,ads,analyses,snapshots,testRuns,loading,error,adsLoading,adsError,refresh,latestAnalysis}}>{children}</Context.Provider>;
 }
 export function useWorkspace(){const x=useContext(Context);if(!x)throw new Error('Workspace ausente');return x;}
