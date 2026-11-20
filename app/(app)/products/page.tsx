@@ -1,40 +1,109 @@
 'use client';
 import Link from 'next/link';
-import {useMemo,useState} from 'react';
-import {ArrowRight,BookOpenCheck,Download,FolderSearch,Globe2,Link2,LoaderCircle,Plus,Search,ShieldAlert,Trash2} from 'lucide-react';
+import {useMemo,useState,type FormEvent} from 'react';
+import {ArrowRight,BookOpenCheck,ChartNoAxesCombined,CheckCircle2,Download,ExternalLink,FolderSearch,Globe2,LoaderCircle,Plus,Search,ShieldAlert,Sparkles,Trash2} from 'lucide-react';
+import {useRouter} from 'next/navigation';
 import {useWorkspace} from '@/components/workspace';
-import {Empty,Feedback,Load,Modal,PageHeading,StatusPill} from '@/components/ui';
-import {ProductForm} from '@/components/forms';
-import {downloadCsv,brl,opportunityScore} from '@/lib/utils';
-import {productTypes} from '@/lib/types';
+import {Load,Modal} from '@/components/ui';
+import {downloadCsv,brl,safeHttpUrl} from '@/lib/utils';
+import {comparableUrl,digitalFormats,digitalNiches,digitalRadar,formatName,formatTag,getDigitalFormat,markets,metaDiscoveryUrl} from '@/lib/digital-radar';
+import type {Product} from '@/lib/types';
+import styles from './radar.module.css';
 
-function nextStep(hasPage:boolean,hasPrice:boolean,adCount:number,hasAnalysis:boolean){
-  if(!hasPage)return 'Adicionar o link da página de vendas';
-  if(!hasPrice)return 'Informar o preço da oferta';
-  if(!adCount)return 'Salvar um anúncio real da concorrência';
-  if(!hasAnalysis)return 'Analisar os pontos fortes e os riscos';
-  return 'Conferir o parecer e decidir o próximo teste';
+type Filter='all'|'priority'|'check'|'ads'|'testing';
+const defaultMarket=markets[0];
+
+function suggestedName(url:string){
+  try{
+    const host=new URL(url).hostname.replace(/^www\./,'');
+    return 'Oferta de '+host.slice(0,120);
+  }catch{return 'Oferta digital para pesquisar';}
+}
+function normalized(value:string){
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 }
 
 export default function Products(){
-  const {products,ads,loading,error,latestAnalysis,supabase,refresh}=useWorkspace();
-  const [newOpen,setNewOpen]=useState(false);
+  const router=useRouter();
+  const {products,ads,loading,error,supabase,refresh}=useWorkspace();
+  const [link,setLink]=useState('');
+  const [name,setName]=useState('');
+  const [niche,setNiche]=useState('');
+  const [market,setMarket]=useState<string>(defaultMarket.code);
+  const [format,setFormat]=useState('');
+  const [price,setPrice]=useState('');
+  const [saving,setSaving]=useState(false);
+  const [failure,setFailure]=useState('');
+  const [feedback,setFeedback]=useState('');
+  const [discoveryNiche,setDiscoveryNiche]=useState<string>(digitalNiches[0].name);
+  const [discoveryMarket,setDiscoveryMarket]=useState('US');
   const [search,setSearch]=useState('');
-  const [status,setStatus]=useState('all');
-  const [type,setType]=useState('all');
+  const [filter,setFilter]=useState<Filter>('all');
+  const [formatFilter,setFormatFilter]=useState('all');
+  const [countryFilter,setCountryFilter]=useState('all');
   const [deleteOpen,setDeleteOpen]=useState(false);
   const [confirmation,setConfirmation]=useState('');
   const [deleting,setDeleting]=useState(false);
-  const [feedback,setFeedback]=useState('');
-  const [failure,setFailure]=useState('');
-  const filtered=useMemo(()=>products.filter(p=>
-    (status==='all'||p.status===status)&&
-    (type==='all'||p.product_type===type)&&
-    (p.name+' '+p.niche+' '+p.notes).toLowerCase().includes(search.toLowerCase())
-  ),[products,search,status,type]);
-  const withAds=new Set(ads.map(a=>a.product_id)).size;
-  const researching=products.filter(p=>p.status==='researching').length;
-  const testing=products.filter(p=>p.status==='testing').length;
+
+  const digital=useMemo(()=>products.filter(p=>p.product_type==='digital'),[products]);
+  const offers=useMemo(()=>digital.map(p=>{
+    const related=ads.filter(ad=>ad.product_id===p.id);
+    return {product:p,ads:related,radar:digitalRadar(p,related)};
+  }).sort((a,b)=>b.radar.score-a.radar.score||
+    new Date(b.product.created_at).getTime()-new Date(a.product.created_at).getTime()),[digital,ads]);
+  const filtered=useMemo(()=>offers.filter(o=>{
+    const p=o.product;
+    const query=normalized(search.trim());
+    const matchSearch=!query||normalized([p.name,p.niche,p.country,p.promise,p.notes].join(' ')).includes(query);
+    const matchFormat=formatFilter==='all'||getDigitalFormat(p.notes)===formatFilter;
+    const matchCountry=countryFilter==='all'||p.country===countryFilter;
+    const matchStage=filter==='all'||
+      (filter==='priority'&&o.radar.score>=63)||
+      (filter==='check'&&o.radar.score<63)||
+      (filter==='ads'&&o.radar.hasEvidence)||
+      (filter==='testing'&&p.status==='testing');
+    return matchSearch&&matchFormat&&matchCountry&&matchStage;
+  }),[offers,filter,search,formatFilter,countryFilter]);
+  const withAds=offers.filter(x=>x.radar.hasEvidence).length;
+  const priority=offers.filter(x=>x.radar.score>=63).length;
+  const inTest=offers.filter(x=>x.product.status==='testing').length;
+  const discoveryLink=metaDiscoveryUrl(discoveryNiche,discoveryMarket);
+
+  async function saveOffer(e:FormEvent){
+    e.preventDefault();setFailure('');setFeedback('');
+    if(saving)return;
+    const clean=safeHttpUrl(link);
+    if(!clean){setFailure('Cole um link válido começando com https:// ou http://.');return;}
+    const duplicate=products.find(p=>comparableUrl(p.landing_url)===comparableUrl(clean));
+    if(duplicate){setFeedback('Essa página já está cadastrada. Abrindo o dossiê existente.');
+      router.push('/products/'+duplicate.id);return;}
+    if(price.trim()!==''&&(!Number.isFinite(Number(price))||Number(price)<0)){
+      setFailure('Confira o preço: informe um número positivo ou deixe vazio.');return;
+    }
+    setSaving(true);
+    try{
+      const {data:{user},error:authError}=await supabase.auth.getUser();
+      if(authError)throw authError;
+      if(!user)throw new Error('Faça login novamente para salvar.');
+      const m=markets.find(x=>x.code===market)||defaultMarket;
+      const value={
+        user_id:user.id,
+        name:name.trim().slice(0,150)||suggestedName(clean),
+        product_type:'digital',niche,country:m.country,language:m.language,currency:m.currency,
+        sale_price:price.trim()?Number(price):null,
+        fulfillment_cost:null,extra_cost:null,
+        landing_url:clean,checkout_url:'',landing_copy:'',promise:'',target_audience:'',
+        notes:[formatTag(format),'Fonte: página de referência cadastrada manualmente.','Validação de anúncios e demanda pendente.'].filter(Boolean).join('\n'),
+        status:'researching'
+      };
+      const {data,error:saveError}=await supabase.from('products').insert(value).select('id').single();
+      if(saveError)throw saveError;
+      await refresh();
+      router.push('/products/'+data.id);
+    }catch(err){
+      setFailure(err instanceof Error?err.message:'Não foi possível cadastrar a oferta.');
+    }finally{setSaving(false);}
+  }
 
   async function eraseCatalog(){
     if(confirmation.trim().toUpperCase()!=='APAGAR'||deleting)return;
@@ -43,158 +112,253 @@ export default function Products(){
       const {data:{user},error:authError}=await supabase.auth.getUser();
       if(authError)throw authError;
       if(!user)throw new Error('Sua sessão expirou. Faça login novamente.');
-      // RLS e a condição por user_id impedem apagar registros de outras contas.
-      // As FKs do schema removem anúncios, capturas, análises e testes relacionados.
-      const creativePaths=[...new Set(ads.map(a=>a.creative_path).filter((x):x is string=>!!x))];
-      const {data:removed,error:deleteError}=await supabase.from('products')
+      // O banco usa RLS e cascade; a cláusula por dono é uma proteção adicional.
+      const media=[...new Set(ads.map(ad=>ad.creative_path).filter((p):p is string=>!!p))];
+      const {data:deleted,error:deleteError}=await supabase.from('products')
         .delete().eq('user_id',user.id).select('id');
       if(deleteError)throw deleteError;
-      const {count,error:verifyError}=await supabase.from('products')
-        .select('id',{count:'exact',head:true}).eq('user_id',user.id);
-      if(verifyError)throw verifyError;
-      if(count!==0)throw new Error('A limpeza ficou incompleta: ainda há ofertas no seu catálogo.');
-      let leftovers=false;
-      for(let i=0;i<creativePaths.length;i+=100){
-        const {error:storageError}=await supabase.storage.from('creatives').remove(creativePaths.slice(i,i+100));
-        if(storageError)leftovers=true;
+      const {count,error:checkError}=await supabase.from('products')
+        .select('id',{head:true,count:'exact'}).eq('user_id',user.id);
+      if(checkError)throw checkError;
+      if(count!==0)throw new Error('Ainda existem ofertas no banco. A limpeza não foi concluída.');
+      let mediaError=false;
+      for(let i=0;i<media.length;i+=100){
+        const {error:storageError}=await supabase.storage.from('creatives').remove(media.slice(i,i+100));
+        if(storageError)mediaError=true;
       }
       await refresh();
-      setDeleteOpen(false);setConfirmation('');setSearch('');setStatus('all');setType('all');
-      setFeedback(String(removed?.length||0)+' oferta(s) excluída(s), incluindo anúncios, análises e testes relacionados.'+
-        (leftovers?' Alguns arquivos de mídia podem precisar de limpeza manual.':''));
+      setDeleteOpen(false);setConfirmation('');setFilter('all');setSearch('');
+      setFormatFilter('all');setCountryFilter('all');
+      setFeedback((deleted?.length||0)+' oferta(s) excluída(s).'+
+        (mediaError?' Algumas mídias antigas podem precisar de limpeza manual.':''));
     }catch(err){
-      setFailure(err instanceof Error?err.message:'Não foi possível limpar o catálogo.');
+      setFailure(err instanceof Error?err.message:'Falha ao excluir ofertas.');
       await refresh();
     }finally{setDeleting(false);}
   }
 
-  return <>
-    <PageHeading eyebrow="ORGANIZE SUAS PESQUISAS" title="Minhas ofertas"
-      description="Um lugar simples para salvar, entender e comparar ideias antes de investir."
-      action={<>
-        <Link href="/browser" className="btn btn-ghost"><Globe2 size={16}/> Pesquisar ofertas</Link>
-        <button className="btn btn-primary" onClick={()=>setNewOpen(true)}><Plus size={17}/> Adicionar oferta</button>
-      </>}/>
-
-    <section className="offer-guide" aria-label="Como usar o Caçador">
-      <div className="offer-guide-head">
-        <div><span className="eyebrow">COMECE POR AQUI</span><h2>Da pesquisa até o teste, em 3 passos</h2></div>
-        <Link className="small-link" href="/semana">Ver teste da semana <ArrowRight size={14}/></Link>
+  return <div className={styles.root}>
+    <header className={styles.heading}>
+      <div>
+        <div className={styles.kicker}>CAÇADOR.IA · RADAR DE PRODUTOS DIGITAIS</div>
+        <h1>Encontre, avalie e remodele ofertas digitais</h1>
+        <p>Descubra ideias na gringa, registre as referências e escolha onde vale investir seu tempo.</p>
       </div>
-      <div className="offer-steps">
-        <div className="offer-step"><span className="offer-step-number">1</span><div><strong>Encontre uma oferta</strong><p>Pesquise na gringa ou no Brasil e salve o nome e o link da página.</p></div></div>
-        <div className="offer-step"><span className="offer-step-number">2</span><div><strong>Confira as evidências</strong><p>Anote preço, promessa e anúncios reais. Anúncio ativo não significa lucro.</p></div></div>
-        <div className="offer-step"><span className="offer-step-number">3</span><div><strong>Decida com critério</strong><p>Analise riscos, prepare um produto autoral e só então escolha um teste.</p></div></div>
+      <div className={styles.headingActions}>
+        <Link href="/semana" className={styles.secondary}><ChartNoAxesCombined size={16}/> Decidir teste da semana</Link>
+      </div>
+    </header>
+
+    {error&&<div className={styles.error} role="alert">Não foi possível carregar todos os dados: {error}</div>}
+    {failure&&<div className={styles.error} role="alert">{failure}</div>}
+    {feedback&&<div className={styles.success} role="status">{feedback}</div>}
+
+    <section className={styles.hero} aria-label="Cadastro rápido de oferta digital">
+      <div>
+        <div className={styles.kicker}>01 · SALVE UMA REFERÊNCIA</div>
+        <h2>Cole o link da oferta que encontrou</h2>
+        <p>Não precisa preencher um formulário enorme. Salve uma página da gringa e complemente as informações depois.</p>
+        <form className={styles.quickForm} onSubmit={e=>void saveOffer(e)}>
+          <label className={styles.inputGroup}>Link da página de vendas *
+            <input className={styles.input} type="url" required value={link} onChange={e=>setLink(e.target.value)}
+              placeholder="https://site-do-produto.com/oferta" autoComplete="url"/>
+          </label>
+          <label className={styles.inputGroup}>Nome da oferta (opcional)
+            <input className={styles.input} type="text" maxLength={150} value={name}
+              onChange={e=>setName(e.target.value)} placeholder="Ex.: Biblioteca de atividades para idosos"/>
+          </label>
+          <div className={styles.rowFields}>
+            <label className={styles.inputGroup}>Nicho
+              <select className={styles.select} value={niche} onChange={e=>setNiche(e.target.value)}>
+                <option value="">Escolher depois</option>
+                {digitalNiches.map(n=><option key={n.name} value={n.name}>{n.name}</option>)}
+              </select>
+            </label>
+            <label className={styles.inputGroup}>País da referência
+              <select className={styles.select} value={market} onChange={e=>setMarket(e.target.value)}>
+                {markets.map(m=><option key={m.code} value={m.code}>{m.label}</option>)}
+              </select>
+            </label>
+            <label className={styles.inputGroup}>Formato do produto
+              <select className={styles.select} value={format} onChange={e=>setFormat(e.target.value)}>
+                <option value="">Descobrir depois</option>
+                {digitalFormats.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
+              </select>
+            </label>
+            <label className={styles.inputGroup}>Preço no país de origem (opcional)
+              <input className={styles.input} type="number" min="0" step=".01" value={price}
+                onChange={e=>setPrice(e.target.value)}
+                placeholder={'Ex.: 19.90 ('+(markets.find(m=>m.code===market)?.currency||'USD')+')'}/>
+            </label>
+          </div>
+          <div className={styles.formFooter}>
+            <button className={styles.primary} type="submit" disabled={saving}>
+              {saving?<LoaderCircle size={17} className="spin"/>:<Plus size={17}/>}
+              {saving?'Salvando...':'Salvar e abrir análise'} <ArrowRight size={15}/>
+            </button>
+            <small>O cadastro não copia nem verifica automaticamente o conteúdo da página.</small>
+          </div>
+        </form>
+      </div>
+      <aside className={styles.heroAside}>
+        <div className={styles.processCard}>
+          <h3>Seu processo de remodelagem</h3>
+          <div className={styles.processStep}><b className={styles.number}>1</b><div><strong>Encontrar</strong><span>Use os links de pesquisa para descobrir ofertas digitais no exterior.</span></div></div>
+          <div className={styles.processStep}><b className={styles.number}>2</b><div><strong>Validar</strong><span>Guarde preço, proposta, anúncios individuais e riscos da oferta.</span></div></div>
+          <div className={styles.processStep}><b className={styles.number}>3</b><div><strong>Criar a sua versão</strong><span>Produza entregáveis originais e uma página própria, adequada ao Brasil.</span></div></div>
+        </div>
+        <div className={styles.rule}><ShieldAlert size={15} style={{verticalAlign:'middle',marginRight:6}}/>
+          O radar avalia informação disponível e esforço provável. Não tem acesso às vendas dos concorrentes.</div>
+      </aside>
+    </section>
+
+    <section className={styles.discovery} aria-label="Pesquisar ideias para produtos digitais">
+      <div className={styles.sectionTitle}>
+        <div><div className={styles.kicker}>02 · ENCONTRE OFERTAS NA GRINGA</div>
+          <h2>Pesquisar oportunidades na Biblioteca de Anúncios</h2>
+          <p>Escolha nicho e mercado. O botão abre uma busca com palavras-chave no idioma do país.</p>
+        </div>
+        <Link href="/browser" className={styles.quiet}><Globe2 size={16}/> Navegador do Caçador</Link>
+      </div>
+      <div className={styles.discoveryControls}>
+        <label className={styles.inputGroup}>O que você quer pesquisar?
+          <select className={styles.select} value={discoveryNiche} onChange={e=>setDiscoveryNiche(e.target.value)}>
+            {digitalNiches.map(n=><option key={n.name} value={n.name}>{n.name}</option>)}
+          </select>
+        </label>
+        <label className={styles.inputGroup}>País dos anúncios
+          <select className={styles.select} value={discoveryMarket} onChange={e=>setDiscoveryMarket(e.target.value)}>
+            {markets.map(m=><option key={m.code} value={m.code}>{m.label}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className={styles.discoveryAction}>
+        <a className={styles.primary} href={discoveryLink} target="_blank" rel="noopener noreferrer">
+          <Search size={16}/> Abrir pesquisa de anúncios <ExternalLink size={15}/>
+        </a>
+        <p className={styles.disclaimer}><ShieldAlert size={14}/> É uma busca externa, não uma lista de produtos vencedores. Verifique cada anúncio e a página original antes de salvar.</p>
       </div>
     </section>
 
-    {error&&<div className="mb-2"><Feedback type="error">Não foi possível carregar todas as informações: {error}</Feedback></div>}
-    {feedback&&<div className="mb-2"><Feedback type="success">{feedback}</Feedback></div>}
-    {failure&&<div className="mb-2"><Feedback type="error">{failure}</Feedback></div>}
-
-    {!loading&&<div className="offer-overview" aria-label="Resumo das ofertas">
-      <div><span>Ofertas salvas</span><strong>{products.length}</strong></div>
-      <div><span>Em pesquisa</span><strong>{researching}</strong></div>
-      <div><span>Com anúncios</span><strong>{withAds}</strong></div>
-      <div><span>Em teste</span><strong>{testing}</strong></div>
+    {!loading&&<div className={styles.metrics} aria-label="Resumo de ofertas digitais">
+      <div className={styles.metric}><span>Ofertas digitais</span><strong>{digital.length}</strong></div>
+      <div className={styles.metric}><span>Para investigar primeiro</span><strong>{priority}</strong></div>
+      <div className={styles.metric}><span>Com anúncio identificado</span><strong>{withAds}</strong></div>
+      <div className={styles.metric}><span>Em teste</span><strong>{inTest}</strong></div>
     </div>}
 
-    <div className="offer-list-heading">
-      <div><h2>Seu catálogo</h2><p className="muted">Abra uma oferta para ver o diagnóstico e o que falta fazer.</p></div>
-      {products.length>0&&<div className="flex wrap gap-2">
-        <button className="btn btn-ghost" onClick={()=>downloadCsv('ofertas-cacador.csv',
-          ['Nome','Nicho','Tipo','Preço','Status','Página'],
-          products.map(p=>[p.name,p.niche,p.product_type,p.sale_price,p.status,p.landing_url]))}>
-          <Download size={15}/> Exportar CSV
-        </button>
-        <button className="btn btn-danger" onClick={()=>{setConfirmation('');setFailure('');setDeleteOpen(true);}}>
-          <Trash2 size={15}/> Zerar catálogo
-        </button>
-      </div>}
-    </div>
-
-    <div className="offer-filters">
-      <label className="search-box"><Search size={16}/><input className="input"
-        aria-label="Pesquisar ofertas" placeholder="Pesquisar pelo nome ou nicho..."
-        value={search} onChange={e=>setSearch(e.target.value)}/></label>
-      <label className="offer-filter-field">Etapa
-        <select className="select" value={status} onChange={e=>setStatus(e.target.value)}>
-          <option value="all">Todas as etapas</option>
-          <option value="researching">Em pesquisa</option>
-          <option value="ready">Prontas para avaliar</option>
-          <option value="testing">Em teste</option>
-          <option value="winning">Com resultado positivo</option>
-          <option value="discarded">Descartadas</option>
-        </select>
-      </label>
-      <details className="offer-more-filters"><summary>Mais filtros</summary>
-        <label className="offer-filter-field">Tipo de produto
-          <select className="select" value={type} onChange={e=>setType(e.target.value)}>
-            <option value="all">Todos os tipos</option>
-            <option value="digital">Digital</option>
-            <option value="physical">Físico</option>
-            <option value="saas">SaaS</option>
-            <option value="service">Serviço</option>
+    <section className={styles.catalog} aria-label="Classificação das ofertas cadastradas">
+      <div className={styles.catalogTop}>
+        <div><div className={styles.kicker}>03 · COMPARE AS OPORTUNIDADES</div>
+          <h2>Ranking de pesquisa: melhores candidatas primeiro</h2>
+          <p>Ordenado por dados disponíveis e facilidade estimada de produzir um material próprio.</p>
+        </div>
+        <div className={styles.catalogButtons}>
+          {products.length>0&&<>
+            <button className={styles.quiet} onClick={()=>downloadCsv('ofertas-digitais-cacador.csv',
+              ['Oferta','Nicho','País','Formato','Preço','Moeda','Nota de triagem','Página'],
+              offers.map(x=>[x.product.name,x.product.niche,x.product.country,formatName(x.product.notes),
+                x.product.sale_price,x.product.currency,x.radar.score,x.product.landing_url]))}>
+              <Download size={15}/> Exportar
+            </button>
+            <button className={styles.danger} onClick={()=>{setConfirmation('');setDeleteOpen(true);}}>
+              <Trash2 size={15}/> Zerar catálogo
+            </button>
+          </>}
+        </div>
+      </div>
+      <div className={styles.tabs} role="group" aria-label="Mostrar ofertas">
+        {([
+          ['all','Todas'],['priority','Investigar primeiro'],['check','Precisam de dados'],
+          ['ads','Com anúncio identificado'],['testing','Em teste']
+        ] as const).map(([id,label])=>
+          <button key={id} type="button" className={styles.tab+' '+(filter===id?styles.tabActive:'')}
+            aria-pressed={filter===id} onClick={()=>setFilter(id)}>{label}</button>
+        )}
+      </div>
+      <div className={styles.filters}>
+        <label className={styles.filterLabel}>Buscar pelo nome ou nicho
+          <input className={styles.input} type="search" value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Ex.: TCC, idosos, planner..."/>
+        </label>
+        <label className={styles.filterLabel}>Formato do entregável
+          <select className={styles.select} value={formatFilter} onChange={e=>setFormatFilter(e.target.value)}>
+            <option value="all">Todos os formatos</option>
+            {digitalFormats.map(f=><option key={f.id} value={f.id}>{f.label}</option>)}
           </select>
         </label>
-      </details>
-    </div>
-
-    {loading?<Load/>:filtered.length===0?
-      <div className="panel"><Empty icon={<FolderSearch size={28}/>}
-        headline={products.length?'Nenhuma oferta encontrada':'Seu catálogo está vazio'}
-        description={products.length?
-          'Experimente remover os filtros para visualizar suas ofertas.':
-          'Comece do zero: cadastre uma oferta que encontrou. Nenhuma oferta antiga será adicionada automaticamente.'}
-        action={<button className="btn btn-primary" onClick={()=>setNewOpen(true)}><Plus size={16}/> Cadastrar primeira oferta</button>}/></div>
-      :<div className="offer-card-grid">
-        {filtered.map(p=>{
-          const productAds=ads.filter(a=>a.product_id===p.id);
-          const analysis=latestAnalysis(p.id);
-          const score=opportunityScore(p,productAds,analysis);
-          return <Link className="offer-card" href={'/products/'+p.id} key={p.id}>
-            <div className="offer-card-top">
-              <span className="card-tag">{productTypes[p.product_type]||'Produto'}</span>
-              <StatusPill value={p.status}/>
+        <label className={styles.filterLabel}>Mercado da referência
+          <select className={styles.select} value={countryFilter} onChange={e=>setCountryFilter(e.target.value)}>
+            <option value="all">Todos os países</option>
+            {[...new Set(digital.map(p=>p.country))].filter(Boolean).sort().map(c=><option value={c} key={c}>{c}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className={styles.resultsInfo}>{filtered.length} oferta(s) exibida(s) · Pontuação de triagem de 0 a 100, não de faturamento.</div>
+      {loading?<Load/>:filtered.length===0?
+        <div className={styles.empty}>
+          <FolderSearch size={31}/>
+          <h3>{digital.length?'Nenhuma oferta para esses filtros':'Seu radar digital está pronto para começar'}</h3>
+          <p>{digital.length?'Mude os filtros ou cadastre outra referência.':
+            'Cole acima o link da primeira página de vendas. Em seguida, salve anúncios e use a análise para escolher o que remodelar.'}</p>
+          {digital.length>0?<button className={styles.secondary} onClick={()=>{
+            setSearch('');setFilter('all');setCountryFilter('all');setFormatFilter('all');
+          }}>Limpar filtros</button>:<a className={styles.primary} href={discoveryLink}
+            target="_blank" rel="noopener noreferrer}>Encontrar primeiras ofertas <ExternalLink size={15}/></a>}
+        </div>:
+        <div className={styles.cards}>{filtered.map(({product:p,radar,ads:related})=>
+          <article className={styles.card} key={p.id}>
+            <div className={styles.cardHead}>
+              <span className={styles.chip}>{p.country==='Brasil'?'🇧🇷 Brasil':'🌍 Gringa'} · Digital</span>
+              <span className={styles.chip+' '+(radar.score>=63?styles.chipGood:styles.chipNeutral)}>{radar.label}</span>
             </div>
             <h3>{p.name}</h3>
-            <p className="offer-card-promise">{p.promise||p.niche||'Promessa ainda não registrada'}</p>
-            <div className="offer-card-details">
-              <div><span>Preço informado</span><strong>{p.sale_price!==null?brl(p.sale_price,p.currency):'A verificar'}</strong></div>
-              <div><span>Mercado</span><strong>{p.country||'A definir'}</strong></div>
-              <div><span>Anúncios salvos</span><strong>{productAds.length}</strong></div>
+            <p className={styles.cardDescription}>{p.promise||p.niche||'Ainda sem descrição da promessa'}</p>
+            <div className={styles.cardFacts}>
+              <div><span>Formato</span><strong>{formatName(p.notes)}</strong></div>
+              <div><span>Preço de referência</span><strong>{p.sale_price!==null?brl(p.sale_price,p.currency):'Não informado'}</strong></div>
+              <div><span>Anúncios salvos</span><strong>{related.length}</strong></div>
+              <div><span>Facilidade</span><strong>{radar.effort}</strong></div>
             </div>
-            <div className="offer-next"><BookOpenCheck size={17}/><div><span>PRÓXIMO PASSO</span><strong>{nextStep(!!p.landing_url,p.sale_price!==null,productAds.length,!!analysis)}</strong></div></div>
-            <div className="offer-card-bottom">
-              <span><Link2 size={14}/>{p.landing_url?'Página registrada':'Sem link da página'}</span>
-              <span>Abrir dossiê <ArrowRight size={14}/></span>
+            <div>
+              <div className={styles.progressHead}><span>Nota de triagem</span><strong>{radar.score}/100</strong></div>
+              <div className={styles.progressTrack} role="meter" aria-label="Nota de triagem"
+                aria-valuemin={0} aria-valuemax={100} aria-valuenow={radar.score}>
+                <div className={styles.progressFill} style={{width:radar.score+'%'}}/>
+              </div>
             </div>
-            <p className="offer-score-note">Sinal de pesquisa: {score.score}/100 · Não comprova vendas</p>
-          </Link>;
-        })}
-      </div>}
-    {!loading&&products.length>0&&<p className="offer-disclaimer"><ShieldAlert size={15}/> As notas são indicadores de pesquisa. Antes de anunciar, confirme a demanda, a entrega e os custos.</p>}
+            <div className={styles.nextBox}><span>PRÓXIMO PASSO</span><strong>{radar.next}</strong></div>
+            <div className={styles.cardActions}>
+              <Link className={styles.secondary} href={'/products/'+p.id}><BookOpenCheck size={15}/> Ver análise</Link>
+              <Link className={styles.primary} href={'/products/'+p.id+'/remodelar'}><Sparkles size={15}/> Criar versão própria</Link>
+            </div>
+            <p className={styles.cardFoot}>{radar.confidence}. A nota não confirma vendas, autorização de uso ou adequação jurídica.</p>
+          </article>
+        )}</div>}
+      {products.some(p=>p.product_type!=='digital')&&<p className={styles.disclaimer} style={{marginTop:16}}>
+        <CheckCircle2 size={14}/> Os produtos de outros tipos foram preservados, mas este radar mostra apenas ofertas digitais.
+      </p>}
+    </section>
 
-    {newOpen&&<Modal title="Cadastrar nova oferta" subtitle="Comece com nome e link. Complete os detalhes quando quiser."
-      onClose={()=>setNewOpen(false)}><ProductForm onCancel={()=>setNewOpen(false)}
-      onComplete={()=>setNewOpen(false)}/></Modal>}
-
-    {deleteOpen&&<Modal title="Zerar todas as ofertas" subtitle="Esta ação é permanente e afeta somente os registros da sua conta."
+    {deleteOpen&&<Modal title="Zerar todo o catálogo" subtitle="Atenção: a limpeza também inclui ofertas de outros tipos."
       onClose={()=>{if(!deleting){setDeleteOpen(false);setConfirmation('');}}}>
-      <div className="offer-delete-body">
-        <div className="feedback error"><ShieldAlert size={19}/><span>Serão excluídas as {products.length} ofertas, seus anúncios, capturas, análises e testes vinculados. Não será possível desfazer.</span></div>
-        <label className="field">Digite APAGAR para confirmar
-          <input className="input" autoFocus value={confirmation} onChange={e=>setConfirmation(e.target.value)}
-            placeholder="APAGAR" disabled={deleting}/>
+      <div className={styles.deleteDialog}>
+        <p>Esta ação apaga {products.length} oferta(s) da sua conta, com anúncios, análises, históricos e testes relacionados. Não poderá ser desfeita.</p>
+        <label className={styles.inputGroup}>Digite APAGAR para confirmar
+          <input className={styles.input} autoFocus value={confirmation} disabled={deleting}
+            onChange={e=>setConfirmation(e.target.value)} placeholder="APAGAR"/>
         </label>
-        {failure&&<Feedback type="error">{failure}</Feedback>}
-        <div className="form-actions">
-          <button className="btn btn-ghost" disabled={deleting} onClick={()=>{setDeleteOpen(false);setConfirmation('');}}>Cancelar</button>
-          <button className="btn btn-danger" disabled={deleting||confirmation.trim().toUpperCase()!=='APAGAR'}
-            onClick={()=>void eraseCatalog()}>{deleting?<LoaderCircle size={16} className="spin"/>:<Trash2 size={16}/>}
-            {deleting?'Excluindo...':'Excluir todas as ofertas'}</button>
+        {failure&&<div className={styles.error} role="alert">{failure}</div>}
+        <div className={styles.dialogActions}>
+          <button className={styles.secondary} disabled={deleting}
+            onClick={()=>{setDeleteOpen(false);setConfirmation('');}}>Cancelar</button>
+          <button className={styles.danger} disabled={deleting||confirmation.trim().toUpperCase()!=='APAGAR'}
+            onClick={()=>void eraseCatalog()}>
+            {deleting?<LoaderCircle size={16} className="spin"/>:<Trash2 size={16}/>}
+            {deleting?'Excluindo...':'Apagar todas as ofertas'}
+          </button>
         </div>
       </div>
     </Modal>}
-  </>;
+  </div>;
 }
