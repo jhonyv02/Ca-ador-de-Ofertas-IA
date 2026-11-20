@@ -4,6 +4,7 @@ import Link from 'next/link';
 import {ArrowRight,BrainCircuit,ClipboardCheck,ExternalLink,LoaderCircle,ShieldAlert,Sparkles} from 'lucide-react';
 import {useWorkspace} from '@/components/workspace';
 import {PageHeading,Feedback,Load} from '@/components/ui';
+import {isPrintableOffer} from '@/lib/printable-eligibility';
 import {brl} from '@/lib/utils';
 import {checkKeys,directCheckLabels,directFlags,directReadiness,notesWithFlag,
   type DirectCheck} from '@/lib/direct-traffic';
@@ -141,7 +142,7 @@ export default function WeeklyDirect(){
   const [userId,setUserId]=useState('');
   const [selectedId,setSelectedId]=useState('');
   const [updating,setUpdating]=useState<DirectCheck|null>(null);
-  const ranked=useMemo(()=>products.map(product=>{
+  const ranked=useMemo(()=>products.filter(isPrintableOffer).map(product=>{
     const a=ads.filter(x=>x.product_id===product.id);
     const r=testRuns.filter(x=>x.product_id===product.id);
     return {product,gate:directReadiness(product,a,r),ads:a,runs:r};
