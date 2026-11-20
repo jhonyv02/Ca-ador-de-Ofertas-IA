@@ -14,6 +14,15 @@ test('oferta nova e escolha da semana geram avisos diferentes', () => {
   assert.match(messages[1].body, /Prioridade para lançar/);
 });
 
+test('produto pronto para aprovação avisa com o nome', () => {
+  const messages = pushMessages(product, ['ready_for_approval']);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].title, 'Pronto para aprovação');
+  assert.equal(messages[0].body, 'Produto preparado para aprovação: Planner infantil');
+  assert.equal(messages[0].url, '/products/' + product.id);
+  assert.equal(messages[0].tag, 'ready_for_approval-' + product.id);
+});
+
 test('escolha da semana só avisa se a oferta continua marcada', () => {
   assert.deepEqual(pushMessages({...product, weekly_pick: false}, ['weekly_pick']), []);
 });

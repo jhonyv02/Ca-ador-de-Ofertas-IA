@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {digitalRadar, offerFacts} from '../lib/digital-radar.ts';
+import {digitalRadar, offerFacts, researchBars} from '../lib/digital-radar.ts';
 
 const base = {
   notes: '',
@@ -29,6 +29,22 @@ test('dificuldade da coluna tem prioridade e a análise preenche quando ela est�
   assert.equal(highExecution.effort, 'Esforço moderado · 18/30');
   assert.equal(offerFacts({format: 'printable'}).effort, 'Menor esforço estimado');
   assert.equal(offerFacts({}).effort, 'Não avaliado');
+});
+
+test('pesquisa com pontos, máximo e motivo não zera a facilidade', () => {
+  const breakdown = {
+    facilidade: {pontos: 18, max: 20, motivo: 'PDF curto'},
+    adequacao_br: {pontos: 10, max: 20, motivo: 'Preço em dólar'},
+    demanda_exterior: {pontos: 4, max: 20, motivo: 'Pouca prova'},
+    diferenciacao: {pontos: 12, max: 20, motivo: 'Ângulo próprio'},
+    trafego_direto: {pontos: 8, max: 20, motivo: 'Checkout externo'},
+  };
+  const bars = researchBars(breakdown);
+  assert.ok(bars);
+  assert.equal(bars[0].pontos, 18);
+  assert.equal(bars[0].max, 20);
+  assert.match(bars[0].motivo, /PDF/);
+  assert.equal(offerFacts({difficulty: ''}, {breakdown}).effort, 'Menor esforço estimado · 18/20');
 });
 
 test('o radar usa o formato da coluna na nota e a facilidade da análise', () => {

@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
-  events: z.array(z.enum(['new_offer', 'weekly_pick'])).min(1).max(2),
+  events: z.array(z.enum(['new_offer', 'weekly_pick', 'ready_for_approval'])).min(1).max(3),
   product_id: z.string().uuid(),
   user_id: z.string().uuid(),
   name: z.string().max(150).optional(),
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
   const {data: product, error: productError} = await admin
     .from('products')
-    .select('id,user_id,name,weekly_pick')
+    .select('id,user_id,name,weekly_pick,status')
     .eq('id', body.product_id)
     .maybeSingle();
   if (productError) return NextResponse.json({error: 'Falha ao ler a oferta.'}, {status: 500});
@@ -61,9 +61,12 @@ export async function POST(req: Request) {
     .eq('user_id', product.user_id);
   if (subError) return NextResponse.json({error: 'Falha ao ler inscrições.'}, {status: 500});
 
+  const events = (body.events as PushEvent[]).filter(event =>
+    event !== 'ready_for_approval' || product.status === 'ready',
+  );
   const messages = pushMessages(
     {id: product.id, name: product.name, weekly_pick: !!product.weekly_pick},
-    body.events as PushEvent[],
+    events,
   );
   const targets = subscriptions || [];
   if (!targets.length || !messages.length) {
