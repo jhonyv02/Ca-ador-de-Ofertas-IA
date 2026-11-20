@@ -17,7 +17,7 @@ export function ProductForm({product,onComplete,onCancel}:{product?:Product;onCo
   const {supabase,refresh}=useWorkspace();
   const {t,defaultCurrency}=useLocale();
   const [values,setValues]=useState({...blankProduct,...(product?{
-    ...product,notes:product.notes.replace(/(?:^|\\n)#formato-digital:[a-z]+(?=\\n|$)/gi,'').trim(),
+    ...product,notes:product.notes.replace(/(?:^|\n)#formato-digital:[a-z]+(?=\n|$)/gi,'').trim(),
     sale_price:product.sale_price?.toString()||'',fulfillment_cost:product.fulfillment_cost?.toString()||'',extra_cost:product.extra_cost?.toString()||''
   }:{currency:defaultCurrency})});
   const [digitalFormat,setDigitalFormat]=useState(product?getDigitalFormat(product.notes):'');
