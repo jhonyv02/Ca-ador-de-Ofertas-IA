@@ -1,9 +1,11 @@
 'use client';
-import {useEffect, useRef, useState} from 'react';
+import {useRef, useState} from 'react';
 import {BookOpenCheck, LoaderCircle, RefreshCcw, ArrowRight, ExternalLink} from 'lucide-react';
 import Link from 'next/link';
 import {useWorkspace} from '@/components/workspace';
-import {chatOffers, metaSearchLinks, type ChatOffer} from '@/lib/chatgpt-offers';
+import {chatOffers as legacyOffers, metaSearchLinks, type ChatOffer} from '@/lib/chatgpt-offers';
+import {isPrintableOffer} from '@/lib/printable-eligibility';
+const chatOffers=legacyOffers.filter(o=>isPrintableOffer({product_type:'digital',name:o.name,niche:o.niche,promise:o.promise,notes:o.notes}));
 import {Feedback} from '@/components/ui';
 import type {Product} from '@/lib/types';
 import {dbErrorMessage} from '@/lib/db-error';
@@ -24,7 +26,6 @@ let globalImportInProgress=false;
 
 export function ChatgptOfferImport({compact=false}:{compact?:boolean}){
   const {supabase,products,loading,refresh}=useWorkspace();
-  const started=useRef(false);
   const busy=useRef(false);
   const [syncing,setSyncing]=useState(false);
   const [message,setMessage]=useState('');
@@ -112,13 +113,8 @@ export function ChatgptOfferImport({compact=false}:{compact?:boolean}){
     }finally{busy.current=false;globalImportInProgress=false;setSyncing(false);}
   }
 
-  // O usuário autorizou importar as ofertas encontradas. Em cada visita só
-  // acrescenta as ofertas ainda ausentes; nunca altera dados já editados.
-  useEffect(()=>{
-    if(!loading&&!started.current){started.current=true;void synchronize(true);}
-    // Execução intencional apenas quando a consulta inicial do Workspace termina.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[loading]);
+  // A importação automática do catálogo histórico foi pausada para não misturar ofertas antigas.
+  // Importação manual continua possível somente para referências imprimíveis.
 
   if(compact) return <section className="panel" style={{padding:18,marginBottom:20}}>
     <div className="flex between center wrap gap-2">
