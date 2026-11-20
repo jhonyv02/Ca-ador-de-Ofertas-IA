@@ -1,6 +1,18 @@
 /** Trata erros lançados pelo Supabase (objetos PostgREST nem sempre são instâncias de Error).
  *  Não inclui dados do formulário, credenciais, tokens ou cookies nas mensagens.
  */
+/** Coluna ainda não existe (SQL de atualização não rodou neste projeto). */
+export function isMissingColumnError(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const obj = value as Record<string, unknown>;
+  const code = typeof obj.code === 'string' ? obj.code : '';
+  const message = typeof obj.message === 'string' ? obj.message : '';
+  return code === 'PGRST204' || code === '42703'
+    || /could not find the .+ column/i.test(message)
+    || /column ["']?.+["']? of .+ does not exist/i.test(message)
+    || /column ["']?.+["']? does not exist/i.test(message);
+}
+
 export function dbErrorMessage(value: unknown, fallback = 'Não foi possível salvar'): string {
   if (typeof value === 'string') return value.slice(0, 650) || fallback;
   if (!value || typeof value !== 'object') return fallback;

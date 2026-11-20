@@ -9,6 +9,8 @@ import {downloadCsv,brl,safeHttpUrl} from '@/lib/utils';
 import {comparableUrl,digitalFormats,digitalNiches,digitalRadar,formatLabel,formatTag,resolveFormatId,markets,metaDiscoveryUrl} from '@/lib/digital-radar';
 import type {Product,Ad} from '@/lib/types';
 import type {DigitalRadar} from '@/lib/digital-radar';
+import {Creative} from '@/components/creative';
+import {firstAdWithImage,offerLibraryUrl,creativeStoragePaths} from '@/lib/library-links';
 import styles from './radar.module.css';
 
 type Filter='all'|'priority'|'check'|'ads'|'testing';
@@ -26,11 +28,16 @@ function normalized(value:string){
 
 
 function OfferCard({product:p,radar,related}:{product:Product;radar:DigitalRadar;related:Ad[]}){
+  const visual=firstAdWithImage(related);
+  const library=offerLibraryUrl(p,related);
+  const country=p.country?.trim()||'';
+  const market=!country?'🌍 Gringa':country==='Brasil'?'🇧🇷 Brasil':'🌍 '+country;
   return (
     <article className={styles.card+(p.weekly_pick?' '+styles.cardPick:'')}>
+      {visual&&<div className={styles.cardCreative}><Creative ad={visual}/></div>}
       <div className={styles.cardHead}>
         {p.weekly_pick&&<span className={styles.chip+' '+styles.chipPick}>Escolha da semana</span>}
-        <span className={styles.chip}>{p.country==='Brasil'?'🇧🇷 Brasil':'🌍 Gringa'} · Digital</span>
+        <span className={styles.chip}>{market} · Digital</span>
         <span className={styles.chip+' '+(radar.score>=63?styles.chipGood:styles.chipNeutral)}>{radar.label}</span>
       </div>
       <h3>{p.name}</h3>
@@ -52,6 +59,7 @@ function OfferCard({product:p,radar,related}:{product:Product;radar:DigitalRadar
       <div className={styles.cardActions}>
         <Link className={styles.secondary} href={'/products/'+p.id}><BookOpenCheck size={15}/> Ver análise</Link>
         <Link className={styles.primary} href={'/products/'+p.id+'/remodelar'}><Sparkles size={15}/> Criar versão própria</Link>
+        {library&&<a className={styles.secondary+' '+styles.libraryAction} href={library} target="_blank" rel="noopener noreferrer"><ExternalLink size={15}/> Biblioteca</a>}
       </div>
       <p className={styles.cardFoot}>{radar.confidence}. A nota não confirma vendas, autorização de uso ou adequação jurídica.</p>
     </article>
@@ -151,7 +159,7 @@ export default function Products(){
       if(authError)throw authError;
       if(!user)throw new Error('Sua sessão expirou. Faça login novamente.');
       // O banco usa RLS e cascade; a cláusula por dono é uma proteção adicional.
-      const media=[...new Set(ads.map(ad=>ad.creative_path).filter((p):p is string=>!!p))];
+      const media=[...new Set(ads.flatMap(creativeStoragePaths))];
       const {data:deleted,error:deleteError}=await supabase.from('products')
         .delete().eq('user_id',user.id).select('id');
       if(deleteError)throw deleteError;
