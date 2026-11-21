@@ -7,6 +7,7 @@ import {PageHeading,Load,Feedback} from '@/components/ui';
 import type {Analysis,Product} from '@/lib/types';
 import {researchMonitor,researchDecision,researchProgress,funnelLabels} from '@/lib/research-pipeline';
 import {safeHttpUrl} from '@/lib/utils';
+import {isMiniApp} from '@/lib/mini-app-lane';
 
 type View='all'|'researching'|'ready';
 function dateBR(iso:string){
@@ -36,7 +37,7 @@ export function ResearchPage({mini=false}:{mini?:boolean}){
   const [busy,setBusy]=useState('');
   const [message,setMessage]=useState('');
   const [failure,setFailure]=useState('');
-  const cases=useMemo(()=>products.filter(p=>mini?(p.product_type==='saas'||p.format==='app'):(p.product_type!=='saas'&&p.format!=='app')).map(product=>{
+  const cases=useMemo(()=>products.filter(p=>mini===isMiniApp(p)).map(product=>{
     const history=analyses.filter(a=>a.product_id===product.id&&a.kind==='product'&&a.model==='Grok Monitor');
     const audit=analyses.find(a=>a.product_id===product.id&&a.kind==='openai_audit');
     const latest=history.map(researchMonitor).find(x=>x?.monitor_until);
