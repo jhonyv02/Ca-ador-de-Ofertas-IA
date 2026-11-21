@@ -22,11 +22,13 @@ const outputSchema={
 };
 const auditOutputSchema={
   type:'object',additionalProperties:false,
-  required:[...outputSchema.required,'verdict','blockers'],
+  required:[...outputSchema.required,'verdict','blockers','funnel','funnel_reason'],
   properties:{
     ...outputSchema.properties,
     verdict:{type:'string',enum:['approve','reject','needs_work']},
     blockers:{type:'array',items:{type:'string'}},
+    funnel:{type:'string',enum:['landing','whatsapp','hybrid','undecided']},
+    funnel_reason:{type:'string'},
   },
 };
 const breakdownSchema=z.object({
@@ -49,6 +51,8 @@ const baseResult=z.object({
 const auditResult=baseResult.extend({
   verdict:z.enum(['approve','reject','needs_work']),
   blockers:z.array(z.string().max(700)).max(12),
+  funnel:z.enum(['landing','whatsapp','hybrid','undecided']),
+  funnel_reason:z.string().max(1600),
 });
 
 export type OfferAnalysisResult=
@@ -68,6 +72,7 @@ function auditInstructions(locale:string){
     'Se faltar dado, pontue baixo e cite a lacuna. Não preencha buraco com otimismo.',
     'verdict approve só com evidência de demanda, produção viável, originalidade clara, margem aceitável e nenhum bloqueio grave. needs_work quando a hipótese existe mas falta prova, página, checkout, originalidade ou número. reject quando a proposta depende de copiar o concorrente, a margem não fecha, o risco é grave ou não há evidência de demanda.',
     'blockers é uma lista curta do que impede approve. Vazia apenas se verdict for approve. Em reject ou needs_work, inclua ao menos um bloqueio concreto.',
+    'Escolha funnel: landing para produto simples e acessível com decisão rápida; whatsapp para serviço que exige consulta personalizada; hybrid quando WhatsApp é apenas apoio; undecided se faltar evidência. Em funis de luto, não incentive coletar senhas, dados médicos ou financeiros no WhatsApp. Explique custos de atendimento, mensageria, LGPD e qualidade de leads. NUNCA afirme que a IA ou o Grok visitaram os links. Relatos de terceiros são afirmações a validar.',
     'recommendation é o próximo passo objetivo, não uma promessa de venda. Preencha a saída estruturada.',
   ].join(' ');
 }
@@ -104,6 +109,9 @@ export async function runOfferAnalysis(input:{
   const selected=adId?ads.find(ad=>ad.id===adId):undefined;
   if(adId&&!selected)return {ok:false,status:404,error:'Anúncio não encontrado dentro deste produto.'};
   const {data:snapshots}=await supabase.from('ad_snapshots').select('*').eq('user_id',input.userId).in('ad_id',ads.length?ads.map(ad=>ad.id):['00000000-0000-0000-0000-000000000000']).order('checked_at',{ascending:false}).limit(80);
+  const researchRows=audit?(await supabase.from('analyses').select('summary,breakdown,created_at')
+    .eq('product_id',input.productId).eq('user_id',input.userId).eq('kind','product')
+    .eq('model','Grok Monitor').order('created_at',{ascending:false}).limit(12)).data||[]:[];
   const focus=adId?[selected!]:ads.slice(0,16);
   const cleanAds=focus.map(ad=>({
     id:ad.id,platform:ad.platform,advertiser:ad.advertiser,name:ad.name,
@@ -120,6 +128,8 @@ export async function runOfferAnalysis(input:{
   const userText=JSON.stringify({
     scope:audit?'openai_audit':adId?'specific_ad':'whole_product',
     product:productData,
+    research_updates:researchRows.map(row=>({date:row.created_at,summary:String(row.summary||'').slice(0,1700),
+      evidence:row.breakdown&&typeof row.breakdown==='object'?(row.breakdown as Record<string,unknown>).research_monitor:null})),
     ads:cleanAds,
     snapshots:((snapshots||[]) as Snapshot[]).filter(snapshot=>focus.some(ad=>ad.id===snapshot.ad_id)).map(snapshot=>({
       ad_id:snapshot.ad_id,status:snapshot.status,checked_at:snapshot.checked_at,notes:snapshot.notes,
@@ -158,6 +168,8 @@ export async function runOfferAnalysis(input:{
   let parsed:z.infer<typeof baseResult>;
   let verdict:AuditVerdict|undefined;
   let blockers:string[]|undefined;
+  let funnel:'landing'|'whatsapp'|'hybrid'|'undecided'='undecided';
+  let funnelReason='';
   try{
     const data=await response.json();
     const output=(data.output||[]).flatMap((item:{content?:{type?:string;text?:string}[]})=>item.content||[]).find((part:{type?:string})=>part.type==='output_text');
@@ -168,6 +180,8 @@ export async function runOfferAnalysis(input:{
       parsed=validated.data;
       verdict=validated.data.verdict;
       blockers=validated.data.blockers;
+      funnel=validated.data.funnel;
+      funnelReason=validated.data.funnel_reason;
     }else{
       const validated=baseResult.safeParse(result);
       if(!validated.success)return {ok:false,status:502,error:'A IA retornou um formato inválido. Tente novamente.'};
@@ -181,7 +195,8 @@ export async function runOfferAnalysis(input:{
     user_id:input.userId,product_id:input.productId,ad_id:adId||null,
     kind:audit?'openai_audit':adId?'ad':'product',
     score,confidence:parsed.confidence,summary:parsed.summary,strengths:parsed.strengths,
-    risks:parsed.risks,opportunities:parsed.opportunities,breakdown:parsed.breakdown,
+    risks:parsed.risks,opportunities:parsed.opportunities,
+    breakdown:audit?{...parsed.breakdown,research_decision:{funnel,funnel_reason:funnelReason}}:parsed.breakdown,
     recommendation:parsed.recommendation,model,
   };
   if(audit){
