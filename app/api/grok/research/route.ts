@@ -2,6 +2,7 @@ import {NextResponse} from 'next/server';
 import {z} from 'zod';
 import type {Analysis} from '@/lib/types';
 import {normalizeOfferUrl,repairMetaLibraryLink} from '@/lib/meta-search';
+import {parseMetaLibraryUrl} from '@/lib/meta-library';
 import {runOfferAnalysis} from '@/lib/openai-analysis';
 import {webhookAuthorized,configuredWebhookSecret} from '@/lib/push-payload';
 import {researchProgress,canRecommendTest,researchMonitor,researchDecision} from '@/lib/research-pipeline';
@@ -36,6 +37,12 @@ const schema=z.object({
     changes:z.array(z.string().trim().min(3).max(400)).max(25).default([]),
     evidence_urls:z.array(webLink).max(20).default([]),
     funnel_hypothesis:z.string().max(600).default(''),
+    ads:z.array(z.object({
+      url:webLink,name:z.string().max(150).default(''),advertiser:z.string().max(150).default(''),
+      status:z.enum(['active','inactive','unknown']).default('unknown'),
+      started_at:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+      change:z.string().max(1000).default(''),
+    }).strict()).max(12).default([]),
   }).strict(),
 }).strict();
 
@@ -151,6 +158,36 @@ export async function POST(req:Request){
   }).select('id').single();
   if(log.error||!log.data)return NextResponse.json({error:'Oferta salva, mas não foi possível registrar a atualização.'},{status:500});
 
+  const adWarnings:string[]=[];
+  let linkedAds=0;
+  for(const row of body.observation.ads){
+    let parsed:ReturnType<typeof parseMetaLibraryUrl>;
+    try{parsed=parseMetaLibraryUrl(row.url);}catch{adWarnings.push('Link de anúncio inválido: '+row.url.slice(0,80));continue;}
+    if(!parsed.adId){adWarnings.push('Busca sem ID individual: registre o link como evidência, não como anúncio confirmado.');continue;}
+    const lookup=await admin.from('ads').select('id').eq('user_id',body.user_id).eq('product_id',product.id)
+      .eq('meta_library_id',parsed.adId).maybeSingle();
+    if(lookup.error){adWarnings.push('Falha ao localizar anúncio '+parsed.adId);continue;}
+    let adId=lookup.data?.id;
+    const base={name:(row.name||'Anúncio Meta '+parsed.adId).slice(0,150),
+      advertiser:row.advertiser,ad_url:parsed.normalizedUrl,meta_library_id:parsed.adId,
+      observed_active:row.status,status_source:row.status==='unknown'?'unknown':'manual',
+      started_at:row.started_at,started_at_source:row.started_at?'manual':'unknown'};
+    if(adId){
+      const update=await admin.from('ads').update(base).eq('id',adId).eq('user_id',body.user_id);
+      if(update.error){adWarnings.push('Falha ao atualizar anúncio '+parsed.adId);continue;}
+    }else{
+      const insert=await admin.from('ads').insert({...base,user_id:body.user_id,product_id:product.id,
+        platform:'meta',link_check_result:'not_checked',notes:'Registro recebido do Grok; validar na Meta.'})
+        .select('id').single();
+      if(insert.error||!insert.data){adWarnings.push('Falha ao cadastrar anúncio '+parsed.adId);continue;}
+      adId=insert.data.id;
+    }
+    linkedAds++;
+    const snapshot=await admin.from('ad_snapshots').insert({user_id:body.user_id,ad_id:adId,
+      status:row.status,check_method:'manual',check_result:'manual',
+      notes:('Relato Grok '+body.observation.observed_on+': '+(row.change||'Sem alteração descrita')+'. Não verificado automaticamente.').slice(0,2000)});
+    if(snapshot.error)adWarnings.push('Não foi possível salvar histórico do anúncio '+parsed.adId);
+  }
   let audit:Analysis|null=null;
   let auditError='';
   if(process.env.OPENAI_API_KEY){
@@ -177,6 +214,7 @@ export async function POST(req:Request){
     audit:audit?{id:audit.id,score:audit.score,verdict:audit.verdict,confidence:audit.confidence,
       recommendation:audit.recommendation,blockers:audit.blockers,funnel:decision?.funnel||'undecided',
       funnel_reason:decision?.funnel_reason||''}:null,
+    ads_linked:linkedAds,ad_warnings:adWarnings,
     warning:auditError||null,
   },{headers:{'Cache-Control':'no-store'}});
 }
