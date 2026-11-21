@@ -16,10 +16,10 @@ test('linkifica http e https e mantém o texto ao redor', () => {
 });
 
 test('lê a biblioteca do anunciante nas notas quando a coluna ainda não veio do banco', () => {
-  const ad={advertiser_library_url:'',notes:'Copy\nBiblioteca do anunciante: https://www.facebook.com/ads/library/?view_all_page_id=99',ad_url:'https://www.facebook.com/ads/library/?id=7',created_at:'2026-01-01'};
+  const ad={advertiser_library_url:'',notes:'Copy\nBiblioteca do anunciante: https://www.facebook.com/ads/library/?view_all_page_id=99',ad_url:'https://www.facebook.com/ads/library/?id=1734261794294518',created_at:'2026-01-01'};
   assert.equal(new URL(advertiserLibraryUrl(ad)).searchParams.get('view_all_page_id'),'99');
   assert.equal(new URL(offerLibraryUrl({ad_library_url:'',notes:''}, [ad])).searchParams.get('view_all_page_id'),'99');
-  assert.equal(offerLibraryUrl({ad_library_url:'',notes:''}, [{...ad,advertiser_library_url:'',notes:''}]), 'https://www.facebook.com/ads/library/?id=7');
+  assert.equal(offerLibraryUrl({ad_library_url:'',notes:''}, [{...ad,advertiser_library_url:'',notes:''}]), 'https://www.facebook.com/ads/library/?id=1734261794294518');
 });
 
 test('prioriza o link salvo na oferta e agrupa anunciantes', () => {
