@@ -7,6 +7,7 @@ import {runOfferAnalysis} from '@/lib/openai-analysis';
 import {webhookAuthorized,configuredWebhookSecret} from '@/lib/push-payload';
 import {researchProgress,canRecommendTest,researchMonitor,researchDecision} from '@/lib/research-pipeline';
 import {serviceClient} from '@/lib/supabase/admin';
+import {researchLaneError,isMiniApp} from '@/lib/mini-app-lane';
 
 type Lane='offers'|'mini_apps';
 
@@ -77,10 +78,8 @@ export async function receiveGrokResearch(req:Request,lane:Lane){
   }catch{
     return NextResponse.json({error:'Payload inválido. Consulte a documentação da integração Grok.'},{status:400});
   }
-  if(mini&&(!body.source_key?.startsWith('mini-')||body.offer.format!=='app'||!body.observation.mini_app))
-    return NextResponse.json({error:'Mini apps exigem source_key mini-..., format app e observation.mini_app.'},{status:400});
-  if(!mini&&(body.source_key?.startsWith('mini-')||body.offer.format==='app'||body.observation.mini_app))
-    return NextResponse.json({error:'Envie mini apps ao endpoint /api/grok/mini-apps.'},{status:400});
+  const laneError=researchLaneError(lane,{sourceKey:body.source_key,format:body.offer.format,hasMiniData:!!body.observation.mini_app});
+  if(laneError)return NextResponse.json({error:laneError},{status:400});
   if(!isValidDate(body.observation.observed_on)||
     (body.monitor_until&&!isValidDate(body.monitor_until)))
     return NextResponse.json({error:'Data inválida.'},{status:400});
@@ -111,7 +110,7 @@ export async function receiveGrokResearch(req:Request,lane:Lane){
     if((match.data||[]).length>1)return NextResponse.json({error:'Ofertas duplicadas: envie product_id para escolher o dossiê.'},{status:409});
     product=match.data?.[0]||null;
   }
-  if(product&&(mini?(product.product_type!=='saas'||product.format!=='app'):(product.product_type==='saas'||product.format==='app')))
+  if(product&&(mini?(product.product_type!=='saas'||product.format!=='app'):isMiniApp(product)))
     return NextResponse.json({error:'Este dossiê pertence a outra área do Caçador.'},{status:409});
   if(product&&mini&&!(product.notes||'').split('\n').includes('#grok-source:'+body.source_key))
     return NextResponse.json({error:'source_key diferente do dossiê de mini app.'},{status:409});
