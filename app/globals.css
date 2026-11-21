@@ -105,3 +105,86 @@ a.ad-cover:hover{border-color:#3ce0a1;color:#e9fff5}
 .library-row:first-child{border-top:0;padding-top:0}
 .library-row strong{display:block;font-size:13px;overflow-wrap:anywhere}
 .library-row .btn{flex:0 1 auto;white-space:normal;text-align:center}
+
+
+/* Radar de Mini Apps: decisões na listagem, pesquisa somente sob demanda. */
+.mini-radar{max-width:1240px;margin:0 auto}
+.mini-radar .page-heading{margin-bottom:19px}
+.mini-radar .page-heading h1{font-size:clamp(24px,3vw,32px)}
+.mini-radar-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 16px}
+.mini-radar-stat{position:relative;background:#121f31;border:1px solid var(--border);border-radius:13px;padding:16px;min-width:0}
+.mini-radar-stat span{font-size:11px;color:#9cb0c9;display:block;margin-bottom:8px}
+.mini-radar-stat strong{display:block;font-size:26px;line-height:1.1;font-weight:850}
+.mini-radar-stat svg{position:absolute;right:14px;bottom:16px;color:#56d7a9}
+.mini-radar-help{padding:13px 16px;margin:0 0 16px}
+.mini-radar-help summary{display:flex;justify-content:space-between;gap:10px;align-items:center;cursor:pointer;font-weight:750;font-size:12px}
+.mini-radar-help summary span{font-size:11px;color:#7ddfbc;font-weight:650}
+.mini-radar-help p{overflow-wrap:anywhere;font-size:12px}
+.mini-radar-help code{overflow-wrap:anywhere;font-size:11px}
+.mini-radar-tools{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-bottom:10px}
+.mini-radar-search{display:flex;align-items:center;gap:9px;min-width:210px;flex:1;background:#101b2d;border:1px solid #34435b;border-radius:10px;padding:0 13px;height:43px;color:#9fb1c7}
+.mini-radar-search:focus-within{border-color:#42dca2;box-shadow:0 0 0 2px #3ce0a11a}
+.mini-radar-search input{background:transparent;border:none;outline:none;color:#edf6ff;width:100%;min-width:0;font-size:12px}
+.mini-radar-search input::placeholder{color:#8395ac}
+.mini-radar-select{display:flex;align-items:center;gap:7px;background:#152238;color:#aabbd2;border:1px solid #34435b;border-radius:10px;height:43px;padding:0 10px}
+.mini-radar-select select{background:transparent;color:#e7f1fd;border:none;outline:none;max-width:175px;font-size:12px;cursor:pointer}
+.mini-radar-select select option{background:#142137;color:#e7f1fd}
+.mini-radar-tools>.btn{height:43px}
+.mini-radar-result{font-size:11px;color:#8ea7bd;margin:0 0 14px}
+.mini-radar-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:14px}
+.mini-radar-card{background:#121e30;border:1px solid #293953;border-radius:15px;padding:19px;display:flex;flex-direction:column;gap:10px;min-width:0;box-shadow:0 6px 16px #00000016}
+.mini-radar-card:hover{border-color:#436e69}
+.mini-radar-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mini-radar-score{display:flex;align-items:baseline;gap:2px;color:#8edfc4;white-space:nowrap}
+.mini-radar-score strong{font-size:23px;line-height:1;font-weight:850}
+.mini-radar-score small{font-size:10px;color:#91a5bd}
+.mini-radar-card h2{font-size:16px;line-height:1.35;overflow-wrap:anywhere}
+.mini-radar-subtitle{font-size:11px;color:#82a0b8;margin:-3px 0 0}
+.mini-radar-promise{font-size:12px;color:#b1c4d8;line-height:1.48;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:35px}
+.mini-radar-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;border-top:1px solid #283952;border-bottom:1px solid #283952;padding:12px 0}
+.mini-radar-kpis>div{min-width:0}
+.mini-radar-kpis strong{font-size:14px;display:block;font-weight:800}
+.mini-radar-kpis span{font-size:10px;color:#8da4bd;display:block;margin-top:4px}
+.mini-radar-next{background:#152c32;border:1px solid #235449;border-radius:10px;padding:10px 12px;flex:1;min-width:0}
+.mini-radar-next>span{font-size:10px;color:#70dfaf;font-weight:800;display:block;margin-bottom:5px}
+.mini-radar-next p{font-size:11px;color:#d2eee5;margin:0;line-height:1.5}
+.mini-radar-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:auto}
+.mini-radar-actions .btn{flex:1;min-width:0}
+.mini-radar-warning{display:flex;gap:8px;align-items:flex-start;color:#90a8bd;font-size:11px;margin-top:19px}
+.mini-radar-warning svg{flex:0 0 auto}
+.mini-radar-empty{text-align:center;padding:30px}
+.mini-radar-empty svg{color:#6ad5b0;margin-bottom:10px}
+.mini-radar-empty h2{margin-bottom:9px}
+.mini-radar-detail{min-width:0}
+.mini-radar-modal-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:16px}
+.mini-radar-modal-stats>div{border:1px solid #2c4059;background:#142238;border-radius:10px;padding:12px;min-width:0}
+.mini-radar-modal-stats span{font-size:10px;color:#8faac3;display:block;margin-bottom:7px}
+.mini-radar-modal-stats strong{font-size:15px;overflow-wrap:anywhere}
+.mini-radar-tabs{display:flex;gap:7px;border-bottom:1px solid #304158;padding-bottom:9px;overflow-x:auto;margin-bottom:17px}
+.mini-radar-tabs button{background:transparent;border:1px solid transparent;color:#afc2d7;white-space:nowrap;font-size:12px;font-weight:750;padding:10px 13px;border-radius:9px}
+.mini-radar-tabs button:hover{background:#1c3045}
+.mini-radar-tabs button.active{background:#1c423c;border-color:#2a7562;color:#85efbd}
+.mini-radar-body{min-height:160px}
+.mini-radar-body>h3{font-size:13px;color:#f3f8ff;margin:16px 0 7px}
+.mini-radar-body>p{line-height:1.6;overflow-wrap:anywhere;font-size:12px;margin-bottom:11px}
+.mini-radar-info{background:#143c37;border:1px solid #2d715e;padding:14px;border-radius:11px;margin-bottom:16px}
+.mini-radar-info strong{color:#8bf0c2;font-size:13px}
+.mini-radar-info p{font-size:12px;line-height:1.7;margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.mini-radar-blockers{background:#392d29;border:1px solid #665042;padding:13px;border-radius:10px}
+.mini-radar-blockers strong{display:flex;align-items:center;gap:7px;font-size:12px;color:#f8d2a2}
+.mini-radar-blockers ul{margin:10px 0 0;padding-left:20px;color:#e2cab6;font-size:12px;line-height:1.6}
+.mini-radar-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.mini-radar-fields>section{min-width:0;padding:13px;background:#132136;border:1px solid #2b4059;border-radius:10px}
+.mini-radar-fields h3{font-size:11px;color:#83d8b5;margin-bottom:8px}
+.mini-radar-fields p{font-size:12px;color:#d4e0ed;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;margin:0}
+.mini-radar-history{background:#122239;border:1px solid #2b4059;border-radius:10px;padding:12px 14px;margin:9px 0}
+.mini-radar-history summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;font-size:12px;font-weight:750}
+.mini-radar-history summary span:last-child{color:#77e3bb;font-size:10px}
+.mini-radar-history>p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;line-height:1.65;margin:12px 0}
+.mini-radar-history ul{line-height:1.6;padding-left:20px;font-size:12px}
+.mini-radar-links{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0}
+.mini-radar-links a{display:inline-flex;align-items:center;gap:4px;background:#1b4138;border:1px solid #2f6555;border-radius:7px;padding:7px 9px;color:#8af0bf;font-size:11px}
+.mini-radar-detail-actions{display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:15px;margin-top:18px}
+.mini-radar-detail-actions .btn{white-space:normal;text-align:center}
+@media(max-width:1020px){.mini-radar-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.mini-radar-grid{grid-template-columns:1fr}}
+@media(max-width:620px){.mini-radar-stats{gap:8px}.mini-radar-stat{padding:13px}.mini-radar-stat strong{font-size:22px}.mini-radar-tools{align-items:stretch}.mini-radar-search,.mini-radar-select{width:100%;flex:1 1 100%}.mini-radar-select select{flex:1;max-width:none}.mini-radar-tools>.btn{width:100%}.mini-radar-card{padding:15px}.mini-radar-fields{grid-template-columns:1fr}.mini-radar-modal-stats{gap:6px}.mini-radar-modal-stats>div{padding:9px}.mini-radar-modal-stats strong{font-size:12px}.mini-radar-tabs button{padding:9px 10px}.mini-radar-detail-actions .btn{width:100%}}
