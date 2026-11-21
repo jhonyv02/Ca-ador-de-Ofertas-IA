@@ -194,7 +194,7 @@ export async function POST(req:Request){
     const result=await runOfferAnalysis({supabase:admin,userId:body.user_id,productId:product.id,locale:'pt-BR',audit:true});
     if(result.ok)audit=result.analysis;else auditError=result.error;
   }else auditError='OPENAI_API_KEY ainda não está configurada no servidor.';
-  const logs=[{breakdown:{research_monitor:observationMeta}} as Analysis,...prior];
+  const logs=[{breakdown:{research_monitor:observationMeta}} as unknown as Analysis,...prior];
   const progress=researchProgress(logs,monitorUntil);
   let recommended=canRecommendTest(audit,progress);
   let statusUpdated=false;
