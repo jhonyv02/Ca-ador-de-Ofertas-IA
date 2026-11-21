@@ -94,7 +94,7 @@ export async function runOfferAnalysis(input:{
   let limitQuery=supabase.from('analyses').select('id',{count:'exact',head:true}).eq('user_id',input.userId).gte('created_at',dayAgo);
   limitQuery=audit
     ? limitQuery.eq('kind','openai_audit')
-    : limitQuery.in('kind',['product','ad']).neq('model','Grok Bot');
+    : limitQuery.in('kind',['product','ad']).neq('model','Grok Bot').neq('model','Grok Monitor');
   const {count,error:countErr}=await limitQuery;
   if(countErr)return {ok:false,status:500,error:'Não foi possível verificar o limite de análises.'};
   const limit=audit?30:20;
