@@ -120,7 +120,7 @@ export async function runOfferAnalysis(input:{
   }));
   const p=product as Product;
   const productData={
-    name:p.name,niche:p.niche,product_type:p.product_type,country:p.country,currency:p.currency,
+    name:p.name,niche:p.niche,product_type:p.product_type,format:p.format,country:p.country,currency:p.currency,
     sale_price:p.sale_price,fulfillment_cost:p.fulfillment_cost,extra_cost:p.extra_cost,
     landing_url:p.landing_url,checkout_url:p.checkout_url,landing_copy:p.landing_copy.slice(0,12000),
     promise:p.promise,target_audience:p.target_audience,notes:p.notes.slice(0,5000),
@@ -141,7 +141,15 @@ export async function runOfferAnalysis(input:{
     if(signed?.signedUrl)content.push({type:'input_image',image_url:signed.signedUrl,detail:'low'});
   }
   const responseLocale=input.locale||'pt-BR';
-  const instructions=audit?auditInstructions(responseLocale):standardInstructions(responseLocale);
+  const miniApp=p.product_type==='saas'||p.format==='app';
+  const miniInstructions=miniApp?[
+    'Esta oferta é um MINI APP ou micro-SaaS, não um PDF. A finalidade é decidir se vale validar uma hipótese ou construir um MVP pequeno, nunca presumir software pronto.',
+    'Use os mesmos seis tetos de pontos, mas demand mede demanda demonstrada no exterior e lacuna no Brasil; offer mede diferencial funcional e concorrência (inclusive grátis); pain mede frequência e impacto econômico da dor; margin mede preço recorrente ou avulso, custo de infraestrutura, API, suporte, taxas e CAC; execution mede MVP com 1 a 3 funções centrais, dificuldade e dependências; risk mede segurança, privacidade, LGPD, licenças e risco regulatório.',
+    'Não exija landing ou checkout já prontos para recomendar validação de MVP. Não recomende publicidade antes de entrega e medição. Priorize protótipo com poucos usuários, entrevistas e teste de disposição a pagar. Não trate download, review, voto, anúncio ou reclamação como venda confirmada.',
+    'Na recomendação dê a decisão (observar, validar com usuários, considerar MVP, ou descartar), escopo mínimo, prazo estimado condicionado, hipótese de preço em BRL, custo recorrente estimado com premissas, canal de aquisição e próximo teste. Se faltar evidência, diga o que falta. Não invente CAC ou receita.',
+    'Funil landing/hybrid pode ser demonstração e teste gratuito ou lista de espera; whatsapp pode ser prospecção consultiva B2B com consentimento. Não automatize publicação nem cobrança.'
+  ].join(' '):'';
+  const instructions=(audit?auditInstructions(responseLocale):standardInstructions(responseLocale))+' '+miniInstructions;
   const model=process.env.OPENAI_MODEL||'gpt-4.1-mini';
   let response:Response;
   try{
