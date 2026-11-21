@@ -10,13 +10,13 @@ import {serviceClient} from '@/lib/supabase/admin';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 
-const webLink=z.string().url().max(1500).refine(x=>/^https?:\\/\\//i.test(x),'Link HTTP(S) obrigatório');
+const webLink=z.string().url().max(1500).refine(x=>/^https?:\/\//i.test(x),'Link HTTP(S) obrigatório');
 const schema=z.object({
   user_id:z.string().uuid(),
   product_id:z.string().uuid().optional(),
   source_key:z.string().regex(/^[a-zA-Z0-9-]{3,80}$/).optional(),
   event_id:z.string().regex(/^[a-zA-Z0-9:_-]{8,120}$/),
-  monitor_until:z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+  monitor_until:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   offer:z.object({
     name:z.string().trim().min(3).max(150),
     niche:z.string().max(150).optional(),
@@ -31,7 +31,7 @@ const schema=z.object({
     target_audience:z.string().max(600).optional(),
   }).strict(),
   observation:z.object({
-    observed_on:z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/),
+    observed_on:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     summary:z.string().trim().min(20).max(3500),
     changes:z.array(z.string().trim().min(3).max(400)).max(25).default([]),
     evidence_urls:z.array(webLink).max(20).default([]),
@@ -104,7 +104,7 @@ export async function POST(req:Request){
       promise:body.offer.promise||'',target_audience:body.offer.target_audience||'',
       format:body.offer.format||'ebook',status:'researching',weekly_pick:false,
       notes:['Pesquisa Grok · evidências ainda não verificadas.',
-        body.source_key?'#grok-source:'+body.source_key:''].filter(Boolean).join('\\n'),
+        body.source_key?'#grok-source:'+body.source_key:''].filter(Boolean).join('\n'),
     }).select('id,user_id,notes,created_at').single();
     if(error||!data){
       console.error('Grok insert product',error);
@@ -119,7 +119,7 @@ export async function POST(req:Request){
     if(body.offer.landing_url!==undefined)patch.landing_url=body.offer.landing_url?normalizeOfferUrl(body.offer.landing_url):'';
     if(body.offer.ad_library_url!==undefined)patch.ad_library_url=body.offer.ad_library_url?repairMetaLibraryLink(body.offer.ad_library_url):'';
     if(body.source_key&&!product.notes.includes('#grok-source:'))
-      patch.notes=[product.notes,'#grok-source:'+body.source_key].filter(Boolean).join('\\n');
+      patch.notes=[product.notes,'#grok-source:'+body.source_key].filter(Boolean).join('\n');
     if(Object.keys(patch).length){
       const changed=await admin.from('products').update(patch).eq('id',product.id).eq('user_id',body.user_id);
       if(changed.error)return NextResponse.json({error:'Falha ao atualizar a oferta.'},{status:500});
