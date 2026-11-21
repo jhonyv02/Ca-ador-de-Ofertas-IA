@@ -1,7 +1,7 @@
 /** Converte domínios sem protocolo em links HTTPS, sem alterar outros URLs do sistema. */
 export function normalizeOfferUrl(raw:string):string {
   const value=raw.trim();
-  if(!value || /\s/.test(value) || value.includes('\'))return '';
+  if(!value || /\s/.test(value) || value.includes('\\'))return '';
   if(!/^https?:\/\//i.test(value) && /^[a-z][a-z\d+.-]*:/i.test(value))return '';
   const candidate=/^https?:\/\//i.test(value)?value:'https://'+value.replace(/^\/\//,'');
   try {
