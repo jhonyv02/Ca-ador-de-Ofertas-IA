@@ -1,5 +1,11 @@
 import type { Ad, Product } from './types';
 import { safeHttpUrl } from './utils.ts';
+import {repairMetaLibraryLink} from './meta-search.ts';
+
+function safeLibraryUrl(raw:string):string {
+  const http=safeHttpUrl(raw);
+  return http?repairMetaLibraryLink(http):'';
+}
 
 const LIBRARY_NOTE = /Biblioteca do anunciante:\s*(\S+)/i;
 const LIBRARY_LINE = /(^|\n)Biblioteca do anunciante:\s*\S+/g;
@@ -45,11 +51,11 @@ export function linkifyParts(text: string): TextPart[] {
 
 export function libraryUrlFromNotes(notes?: string | null): string {
   const raw = notes?.match(LIBRARY_NOTE)?.[1] || '';
-  return safeHttpUrl(raw.replace(/[),.;]+$/, ''));
+  return safeLibraryUrl(raw.replace(/[),.;]+$/, ''));
 }
 
 export function advertiserLibraryUrl(ad: Pick<Ad, 'advertiser_library_url' | 'notes'>): string {
-  return safeHttpUrl(ad.advertiser_library_url || '') || libraryUrlFromNotes(ad.notes);
+  return safeLibraryUrl(ad.advertiser_library_url || '') || libraryUrlFromNotes(ad.notes);
 }
 
 /** Link da biblioteca da oferta: coluna do produto, notas, biblioteca do anunciante ou o anúncio. */
@@ -57,25 +63,25 @@ export function offerLibraryUrl(
   product: Pick<Product, 'ad_library_url' | 'notes'>,
   ads: Pick<Ad, 'advertiser_library_url' | 'notes' | 'ad_url' | 'created_at'>[]
 ): string {
-  const own = safeHttpUrl(product.ad_library_url || '') || libraryUrlFromNotes(product.notes);
+  const own = safeLibraryUrl(product.ad_library_url || '') || libraryUrlFromNotes(product.notes);
   if (own) return own;
   const ordered = [...ads].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
   for (const ad of ordered) {
     const library = advertiserLibraryUrl(ad);
     if (library) return library;
   }
-  const firstAdUrl = safeHttpUrl(ordered[0]?.ad_url || '');
+  const firstAdUrl = safeLibraryUrl(ordered[0]?.ad_url || '');
   if (firstAdUrl) return firstAdUrl;
   for (const ad of ordered) {
-    const url = safeHttpUrl(ad.ad_url || '');
+    const url = safeLibraryUrl(ad.ad_url || '');
     if (url) return url;
   }
   return '';
 }
 
 export function sameHttpUrl(a?: string | null, b?: string | null): boolean {
-  const left = safeHttpUrl(a || '').replace(/\/$/, '');
-  const right = safeHttpUrl(b || '').replace(/\/$/, '');
+  const left = safeLibraryUrl(a || '').replace(/\/$/, '');
+  const right = safeLibraryUrl(b || '').replace(/\/$/, '');
   return !!left && left === right;
 }
 
