@@ -47,7 +47,7 @@ export function researchProgress(logs:Analysis[],until:string,now=new Date()){
   const valid=logs.map(researchMonitor).filter((row):row is ResearchMonitor=>!!row);
   const uniqueDates=[...new Set(valid.map(row=>row.observed_on))];
   const urls=[...new Set(valid.flatMap(row=>row.evidence_urls))];
-  const endsAt=until?new Date(until+'T23:59:59-03:00'):new Date(NaN);
+  const endsAt=until?new Date(until+'T00:00:00-03:00'):new Date(NaN);
   return {
     observations:valid.length,days:uniqueDates.length,evidenceCount:urls.length,
     periodCompleted:Number.isFinite(endsAt.getTime())&&now>=endsAt,
