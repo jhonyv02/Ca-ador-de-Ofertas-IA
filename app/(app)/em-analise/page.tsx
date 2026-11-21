@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import {useMemo,useState} from 'react';
+import {useEffect,useMemo,useState} from 'react';
 import {BookOpenCheck,CheckCircle2,Clock3,ExternalLink,FolderSearch,RefreshCw,ShieldAlert,Sparkles} from 'lucide-react';
 import {useWorkspace} from '@/components/workspace';
 import {PageHeading,Load,Feedback} from '@/components/ui';
@@ -24,6 +24,14 @@ function AuditStatus({audit}:{audit?:Analysis}){
 export default function ResearchPage(){
   const {products,analyses,loading,error,supabase,refresh}=useWorkspace();
   const [filter,setFilter]=useState<View>('all');
+  const [ownerId,setOwnerId]=useState('');
+  const [endpoint,setEndpoint]=useState('/api/grok/research');
+  useEffect(()=>{
+    let mounted=true;
+    setEndpoint(window.location.origin+'/api/grok/research');
+    void supabase.auth.getUser().then(({data})=>{if(mounted)setOwnerId(data.user?.id||'');});
+    return ()=>{mounted=false;};
+  },[supabase]);
   const [busy,setBusy]=useState('');
   const [message,setMessage]=useState('');
   const [failure,setFailure]=useState('');
@@ -66,6 +74,13 @@ export default function ResearchPage(){
   return <>
     <PageHeading eyebrow="PESQUISA CONTÍNUA · GROK + OPENAI" title="Ofertas em análise"
       description="Acompanhe cada dia da investigação, os links enviados pelo Grok e o parecer independente da OpenAI. Você decide quando testar."/>
+    <details className="panel mb-2" style={{padding:14}}>
+      <summary style={{cursor:'pointer',fontWeight:650}}>Como conectar o Grok a esta área</summary>
+      <p className="muted mt-2">A integração exige uma ferramenta de envio HTTP no Grok e um segredo configurado no servidor como GROK_WEBHOOK_SECRET. A chave OPENAI_API_KEY permanece no servidor.</p>
+      <p className="mt-2"><b>Endpoint:</b> <code style={{overflowWrap:'anywhere'}}>{endpoint}</code></p>
+      <p className="mt-2"><b>Seu user_id:</b> <code style={{overflowWrap:'anywhere'}}>{ownerId||'Carregando...'}</code></p>
+      <p className="micro mt-2">Use os identificadores e o formato JSON do arquivo GROK-PESQUISA-7-DIAS.md no GitHub. Nunca cole a chave de serviço Supabase nem a chave OpenAI no Grok.</p>
+    </details>
     <div className="flex wrap gap-2 mb-2">
       {([['all','Todas'],['researching','Em observação'],['ready','Prontas para revisão']] as const).map(([key,label])=>
         <button key={key} type="button" className={'btn '+(filter===key?'btn-primary':'btn-ghost')}
