@@ -40,7 +40,7 @@ export function repairMetaLibraryLink(raw:string):string {
     const id=url.searchParams.get('id');
     if(id && /^\d{7,25}$/.test(id))return 'https://www.facebook.com/ads/library/?id='+id;
     const page=url.searchParams.get('view_all_page_id');
-    if(page && /^\d{5,25}$/.test(page)) {
+    if(page && /^\d{1,25}$/.test(page)) {
       const params=new URLSearchParams({active_status:'all',ad_type:'all',country:'ALL',view_all_page_id:page});
       return 'https://www.facebook.com/ads/library/?'+params.toString();
     }
