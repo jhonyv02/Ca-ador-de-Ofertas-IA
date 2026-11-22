@@ -92,7 +92,7 @@ export async function syncMercadoPagoSubscription(subscriptionId:string) {
     .select('user_id,status,provider,provider_subscription_id,current_period_end')
     .eq('provider','mercadopago').eq('provider_subscription_id',subscriptionId).maybeSingle();
   if(error)throw new Error('Erro ao localizar assinatura');
-  if(!row) return {known:false};
+  if(!row) return {known:false as const};
   const {data:{user},error:userErr}=await admin.auth.admin.getUserById(row.user_id);
   if(userErr || !user?.email) throw new Error('Conta não encontrada');
   const sub=await mpApi('/preapproval/'+encodeURIComponent(subscriptionId));
@@ -127,5 +127,5 @@ export async function syncMercadoPagoSubscription(subscriptionId:string) {
     mp_last_payment_id:lastPayment, updated_at:new Date().toISOString(),
   }).eq('user_id',row.user_id).eq('provider_subscription_id',subscriptionId);
   if(saveError)throw new Error('Erro ao sincronizar assinatura');
-  return {known:true,userId:row.user_id,status,currentPeriodEnd:end};
+  return {known:true as const,userId:row.user_id,status,currentPeriodEnd:end};
 }

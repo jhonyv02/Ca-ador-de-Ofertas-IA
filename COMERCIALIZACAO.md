@@ -15,7 +15,7 @@
 3. No painel Mercado Pago Developers, crie/configure a aplicação de **Assinaturas**, copie **Access Token privado** e **segredo de assinatura dos webhooks**. Não cole credenciais em chat, no GitHub ou no navegador. Use variáveis privadas da Hostinger/VPS.
 4. Configure webhook `https://SEU-DOMINIO/api/billing/webhook` nos tópicos `subscription_preapproval` e `subscription_authorized_payment`. Teste assinatura, cobrança inicial, renovação, pagamento rejeitado, estorno e cancelamento.
 5. Cadastre o UUID administrativo da conta do Caçador em CACADOR_ADMIN_UIDS (UUID, NÃO email).
-6. Defina política de limites de IA, termos de uso, privacidade e suporte antes de anunciar. O sistema precisa de limite de uso de IA por assinatura.
+6. Defina política de limites de IA, termos de uso, privacidade e suporte antes de anunciar. O sistema precisa de limite de uso de IA por assinatura.\n   **Importante:** as telas também leem Supabase diretamente; antes do lançamento, aplique `supabase/habilitar-acesso-pago.sql` SOMENTE depois de criar o admin em `private.cacador_billing_admins` e testar. Sem RLS comercial, dados do próprio usuário continuam acessíveis pelo cliente Supabase mesmo que a UI esteja bloqueada.
 7. Somente depois do deploy de homologação, confirmação da migração, credenciais testadas e **testes reais completos**, ativar CACADOR_BILLING_ENFORCED=true e CACADOR_PAYMENTS_READY=true. Mantenha false até lá.
 8. Testar com dois usuários diferentes e verificar que cada pagamento só habilita o próprio usuário. Teste páginas privadas, APIs diretas e RLS.
 9. Monitorar webhooks: Mercado Pago tenta novamente em caso de status 503. Se notificações não chegarem, o GET /api/billing/status reconcilia quando o usuário consultar.

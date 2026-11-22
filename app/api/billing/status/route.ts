@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server';
 import {serverClient} from '@/lib/supabase/server';
 import {subscriptionRowForUser,syncMercadoPagoSubscription} from '@/lib/billing/mercadopago';
-import {hasCommercialAccess} from '@/lib/billing/access';
+import {hasCommercialAccess,isBillingEnforced} from '@/lib/billing/access';
 
 export const runtime='nodejs';
 export async function GET() {
@@ -13,7 +13,7 @@ export async function GET() {
     if(initial?.provider==='mercadopago' && initial.provider_subscription_id)
       await syncMercadoPagoSubscription(initial.provider_subscription_id);
     const row=await subscriptionRowForUser(user.id);
-    const active=await hasCommercialAccess(user.id);
+    const active=isBillingEnforced()?await hasCommercialAccess(user.id):false;
     return NextResponse.json({active,status:row?.status||'inactive',currentPeriodEnd:row?.current_period_end||null},{headers:{'Cache-Control':'no-store'}});
   }catch(e){
     console.error('MP status:',e instanceof Error?e.message:'erro');
