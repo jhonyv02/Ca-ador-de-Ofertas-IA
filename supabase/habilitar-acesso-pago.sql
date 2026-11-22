@@ -12,6 +12,14 @@ create table if not exists private.cacador_billing_admins (
 );
 revoke all on private.cacador_billing_admins from public, anon, authenticated;
 
+do $
+begin
+  if not exists (select 1 from private.cacador_billing_admins) then
+    raise exception 'Bloqueio interrompido: cadastre ao menos um administrador em private.cacador_billing_admins ANTES de executar esta etapa.';
+  end if;
+end;
+$;
+
 -- ANTES DE EXECUTAR O BLOCO DE POLICIES:
 -- Insira o UUID verdadeiro do usuário admin via SQL seguro, por exemplo:
 -- insert into private.cacador_billing_admins(user_id) values ('UUID-REAL-DO-ADMIN')

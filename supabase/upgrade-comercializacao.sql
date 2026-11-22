@@ -38,3 +38,12 @@ grant select on public.cacador_subscriptions to authenticated;
 -- Pagamentos só podem habilitar acesso depois de validação da assinatura em
 -- servidor, vínculo por user_id e deduplicação dos eventos do provedor.
 -- Nunca enviar SUPABASE_SERVICE_ROLE_KEY nem credenciais do checkout ao frontend.
+
+-- Reserva acesso administrativo sem depender de uma assinatura paga.
+-- Adicione o UID real do admin somente no SQL Editor do Caçador, não no Git.
+create schema if not exists private;
+create table if not exists private.cacador_billing_admins (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+revoke all on private.cacador_billing_admins from public, anon, authenticated;
