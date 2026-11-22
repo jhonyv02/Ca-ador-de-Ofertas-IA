@@ -15,7 +15,6 @@ const recursos = [
 ];
 
 export default function Home() {
-  const preco = process.env.NEXT_PUBLIC_CACADOR_LAUNCH_PRICE || '49,90';
   return <main className={styles.page}>
     <header className={styles.header}><nav className={styles.nav}>
       <Link href="/" className={styles.brand}><Target size={26} /><span>CAÇADOR<span className={styles.green}>.IA</span></span></Link>
@@ -50,7 +49,7 @@ export default function Home() {
     </section>
 
     <section className={styles.pricing} id="preco"><div className={styles.pricingIntro}><span className={styles.eyebrow}>Proposta de lançamento</span><h2>Pesquise melhor antes de gastar com anúncios.</h2><p>Assinatura mensal pensada para quem testa novas ofertas com frequência.</p><small>O lançamento pago depende de ativação do checkout, confirmação de pagamento e limites de uso de IA.</small></div>
-      <div className={styles.priceCard}><strong>Caçador IA</strong><div className={styles.price}>R$ {preco}<span>/mês</span></div><p>Plano mensal de lançamento</p>
+      <div className={styles.priceCard}><strong>Caçador IA</strong><div className={styles.price}>R$ 49,90<span>/mês</span></div><p>Plano mensal de lançamento</p>
         <ul><li><CheckCircle2 size={17}/> Radar e dossiês de ofertas</li><li><CheckCircle2 size={17}/> Comparação e simulador</li><li><CheckCircle2 size={17}/> IA com limites definidos no lançamento</li><li><CheckCircle2 size={17}/> Acesso individual pelo navegador</li></ul>
         <Link href="/assinar" className={styles.primary}>Ver disponibilidade <ArrowRight size={17}/></Link><small>Nenhuma cobrança é realizada nesta página.</small>
       </div>

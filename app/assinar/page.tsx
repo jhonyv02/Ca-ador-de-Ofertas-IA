@@ -7,7 +7,6 @@ export const metadata = { title: 'Plano mensal | Caçador de Ofertas IA' };
 export const dynamic = 'force-dynamic';
 
 export default function Assinar() {
-  const preco = process.env.NEXT_PUBLIC_CACADOR_LAUNCH_PRICE || '49,90';
   const ready = process.env.CACADOR_PAYMENTS_READY === 'true' &&
     process.env.CACADOR_BILLING_ENFORCED === 'true' &&
     !!process.env.MERCADO_PAGO_ACCESS_TOKEN &&
@@ -23,7 +22,7 @@ export default function Assinar() {
         <Link className={styles.secondary} href="/">Voltar à apresentação</Link>
       </div>
       <div className={styles.priceCard}>
-        <strong>Plano mensal de lançamento</strong><div className={styles.price}>R$ {preco}<span>/mês</span></div>
+        <strong>Plano mensal de lançamento</strong><div className={styles.price}>R$ 49,90<span>/mês</span></div>
         <p>Assinatura recorrente, renovada mensalmente até cancelamento.</p>
         <ul><li><CheckCircle2 size={17}/> Análise e organização de ofertas</li><li><CheckCircle2 size={17}/> Comparação, simulação e teste da semana</li><li><CheckCircle2 size={17}/> IA conforme limites contratados</li><li><CheckCircle2 size={17}/> Conta individual</li></ul>
         <SubscribePanel ready={ready}/>

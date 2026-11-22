@@ -1,7 +1,7 @@
 # Caçador de Ofertas IA — Mercado Pago recorrente
 
 ## Entrega desta branch
-- Página pública de vendas e /assinar para assinaturas de R$ 49,90/mês.
+- Página pública de vendas e /assinar para assinaturas de R$ 49,90/mês. Preço está fixo tanto no checkout quanto na página (evita divergências).
 - POST /api/billing/checkout: cria **preapproval pending** associada ao UID autenticado, com referência externa cacador:<uid>.
 - GET /api/billing/status: reconsulta a assinatura no Mercado Pago, faturas e pagamento aprovado (não confia na URL de retorno).
 - POST /api/billing/webhook: valida x-signature por HMAC SHA-256, x-request-id, data.id e timestamp; consulta os recursos no Mercado Pago e sincroniza por ID da assinatura.
@@ -23,7 +23,6 @@
 
 ## Variáveis privadas na Hostinger
 ```dotenv
-NEXT_PUBLIC_CACADOR_LAUNCH_PRICE=49,90
 NEXT_PUBLIC_SITE_URL=https://seu-dominio.com.br
 MERCADO_PAGO_ACCESS_TOKEN=
 MERCADO_PAGO_WEBHOOK_SECRET=
