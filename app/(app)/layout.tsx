@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { serverClient } from '@/lib/supabase/server';
 import { AppShell } from '@/components/app-shell';
+import { hasCommercialAccess, isBillingEnforced } from '@/lib/billing/access';
 export const dynamic = 'force-dynamic';
 export default async function PrivateLayout({children}:{children:React.ReactNode}) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
@@ -9,5 +10,6 @@ export default async function PrivateLayout({children}:{children:React.ReactNode
   const supabase=await serverClient();
   const {data:{user}}=await supabase.auth.getUser();
   if(!user) redirect('/login');
+  if (isBillingEnforced() && !(await hasCommercialAccess(user.id))) redirect('/assinar');
   return <AppShell email={user.email||'Conta'}>{children}</AppShell>;
 }

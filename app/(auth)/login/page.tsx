@@ -133,9 +133,9 @@ export default function Login() {
           setSignup(!signup);
           resetFeedback();
         }}>
-          {signup ? 'Já tem uma conta? Faça login' : 'Ainda não tem conta? Cadastre-se gratuitamente'}
+          {signup ? 'Já tem uma conta? Faça login' : 'Ainda não tem conta? Crie seu acesso'}
         </button>
-        <div className="micro mt-3">Para uso privado, restrinja novos cadastros nas configurações de autenticação do Supabase.</div>
+        <div className="micro mt-3">Ao ativar as assinaturas, criar uma conta não libera as ferramentas sem pagamento confirmado.</div>
       </div>
     </main>
   );
