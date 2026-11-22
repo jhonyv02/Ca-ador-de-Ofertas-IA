@@ -11,12 +11,15 @@ create table if not exists public.cacador_subscriptions (
   provider text not null default '',
   provider_customer_id text,
   provider_subscription_id text,
+  mp_last_payment_id text,
   current_period_end timestamptz,
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   constraint cacador_subscription_active_has_end
     check (status not in ('active','trialing') or current_period_end is not null)
 );
+
+alter table public.cacador_subscriptions add column if not exists mp_last_payment_id text;
 
 create unique index if not exists cacador_subscriptions_provider_subscription_uniq
   on public.cacador_subscriptions (provider,provider_subscription_id)

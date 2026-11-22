@@ -21,7 +21,7 @@ export async function POST(request:Request){
     if(remote.status!=='canceled'&&remote.status!=='cancelled')
       await mpApi('/preapproval/'+encodeURIComponent(id),{method:'PUT',body:JSON.stringify({status:'canceled'})});
     const result=await syncMercadoPagoSubscription(id);
-    return NextResponse.json({canceled:true,status:result.status,currentPeriodEnd:result.currentPeriodEnd});
+    return NextResponse.json({canceled:true,status:result.known?result.status:'canceled',currentPeriodEnd:result.known?result.currentPeriodEnd:null});
   }catch(e){
     console.error('MP cancellation:',e instanceof Error?e.message:'erro');
     return NextResponse.json({error:'Não foi possível cancelar. Contate o suporte.'},{status:503});

@@ -20,7 +20,7 @@ export async function hasCommercialAccess(userId: string): Promise<boolean> {
       if (error) console.error('Erro ao consultar assinatura:', error.code);
       return false;
     }
-    const validStatus = data.status === 'active' || data.status === 'trialing';
+    const validStatus = data.status === 'active' || data.status === 'trialing' || data.status === 'canceled';
     const validDate = typeof data.current_period_end === 'string' && Date.parse(data.current_period_end) > Date.now();
     return validStatus && validDate;
   } catch (error) {
