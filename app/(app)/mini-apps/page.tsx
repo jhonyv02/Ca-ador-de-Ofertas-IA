@@ -1,2 +1,3 @@
 import MiniAppRadar from '@/components/mini-app-radar';
-export default function Page(){return <MiniAppRadar/>;}
+import CasaLeveLaunch from '@/components/casaleve-launch';
+export default function Page(){return <><CasaLeveLaunch/><MiniAppRadar/></>;}
